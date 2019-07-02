@@ -1,60 +1,77 @@
 defmodule OffBroadwayKafka.Producer do
   use GenStage
 
+  def producer_name(name, topic, partition) do
+    :"off_broadway_producer_#{name}_#{topic}_#{partition}"
+  end
+
   def handle_messages(pid, messages) do
-    GenStage.cast(pid, {:process_messages, messages})
+    send(pid, {:process_messages, messages})
   end
 
   def start_link(opts) do
-    GenStage.start_link(__MODULE__, opts)
+    name = Keyword.fetch!(opts, :name)
+    topic = Keyword.fetch!(opts, :topic)
+    partition = Keyword.fetch!(opts, :partition)
+
+    GenStage.start_link(__MODULE__, opts, name: producer_name(name, topic, partition))
   end
 
   def init(args) do
+    {:ok, acknowledger} = OffBroadwayKafka.Acknowledger.start_link(args)
+
     state = %{
       demand: 0,
-      events: []
+      events: [],
+      acknowledger: acknowledger
     }
 
-    {:producer, args}
+    {:producer, state}
   end
 
   def handle_demand(demand, state) do
     total_demand = demand + state.demand
-    events_to_send = Enum.take(state.events, total_demand)
-    num_events_to_send = length(events_to_send)
-    remaining_events = Enum.drop(state.events, num_events_to_send)
-
-    {:noreply, events_to_send, %{state | demand: total_demand - num_events_to_send, events: remaining_events}}
+    send_events(state, total_demand, state.events)
   end
 
-  def handle_cast({:process_messages, messages}, state) do
+  def handle_info({:process_messages, messages}, state) do
     total_events = state.events ++ messages
-    events_to_send = Enum.take(total_events, state.demand)
+    send_events(state, state.demand, total_events)
+  end
+
+  defp send_events(state, total_demand, total_events) do
+    events_to_send = Enum.take(total_events, total_demand)
     num_events_to_send = length(events_to_send)
-    remaining_events = Enum.drop(total_events, num_events_to_send)
 
-    {:noreply, events_to_send, %{state | demand: state.demand - num_events_to_send, events: remaining_events}}
-  end
-end
+    new_state = %{
+      state
+      | demand: total_demand - num_events_to_send,
+        events: Enum.drop(total_events, num_events_to_send)
+    }
 
-defmodule OffBroadwayKafka.MessageHandler do
-  use Elsa.Consumer.MessageHandler
+    add_offsets_to_acknowledger(state, events_to_send)
 
-  def init(args) do
-    # Start Broadway
-    {:ok, args}
+    {:noreply, wrap_events(state, events_to_send), new_state}
   end
 
-  def handle_messages(messages, state) do
-    OffBroadwayKafka.Producer.handle_messages(state.producer, messages)
-    {:no_ack, state}
+  defp add_offsets_to_acknowledger(_state, []), do: nil
+
+  defp add_offsets_to_acknowledger(state, events) do
+    {min_offset, max_offset} =
+      events
+      |> Enum.map(fn event -> event.offset end)
+      |> Enum.min_max()
+
+    OffBroadwayKafka.Acknowledger.add_offsets(state.acknowledger, min_offset..max_offset)
   end
-end
 
-defmodule OffBroadwayKafka.Acknowledger do
-  @behaviour
-
-  def ack(ack_ref, successful, failed) do
-    :ok
+  defp wrap_events(state, messages) do
+    messages
+    |> Enum.map(fn message ->
+      %Broadway.Message{
+        data: message,
+        acknowledger: {OffBroadwayKafka.Acknowledger, %{pid: state.acknowledger}, %{offset: message.offset}}
+      }
+    end)
   end
 end

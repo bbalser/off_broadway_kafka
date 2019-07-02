@@ -1,25 +1,38 @@
 defmodule OffBroadwayKafka.ProducerTest do
   use ExUnit.Case
+  use Placebo
 
   describe "handle_cast/2" do
     test "it adds incoming messages to its state" do
       events = create_messages(0..5)
-      state = %{events: [], demand: 0}
 
-      assert OffBroadwayKafka.Producer.handle_cast({:process_messages, events}, state) ==
-               {:noreply, [], %{state | events: events}}
+      {:noreply, sent_events, new_state} =
+        OffBroadwayKafka.Producer.handle_cast({:process_messages, events}, state(0, []))
+
+      assert [] == sent_events
+      assert events == new_state.events
     end
 
     test "it returns events equals to demand" do
       events = create_messages(6..10)
 
-      state = %{
-        events: create_messages(1..5),
-        demand: 10
-      }
+      state = state(10, create_messages(1..5))
 
-      assert OffBroadwayKafka.Producer.handle_cast({:process_messages, events}, state) ==
-               {:noreply, create_messages(1..10), %{demand: 0, events: []}}
+      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_cast({:process_messages, events}, state)
+
+      assert broadway_messages(1..10) == sent_events
+      assert match?(%{demand: 0, events: []}, new_state)
+    end
+
+    test "sends incoming messages to the acknowledger" do
+      allow OffBroadwayKafka.Acknowledger.add_offsets(any(), any()), return: :ok
+
+      events = create_messages(1..10)
+      state = state(10, events)
+
+      {:noreply, _sent_events, _new_state} = OffBroadwayKafka.Producer.handle_cast({:process_messages, events}, state)
+
+      assert_called OffBroadwayKafka.Acknowledger.add_offsets(:acknowledger_pid, 1..10)
     end
   end
 
@@ -36,38 +49,54 @@ defmodule OffBroadwayKafka.ProducerTest do
     test "it returns events when pending events are available" do
       events = create_messages(1..10, topic: "test-topic")
 
-      incoming_state = %{
-        demand: 2,
-        events: events
-      }
+      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_demand(5, state(2, events))
 
-      assert OffBroadwayKafka.Producer.handle_demand(5, incoming_state) ==
-               {:noreply, Enum.take(events, 7), %{demand: 0, events: Enum.drop(events, 7)}}
+      expected_events = Enum.drop(events, 7)
+
+      assert Enum.take(broadway_messages(events), 7) == sent_events
+      assert match?(%{demand: 0, events: ^expected_events}, new_state)
     end
 
     test "it has pending demand if not enough events availabe" do
       events = create_messages(1..5)
 
-      incoming_state = %{
-        demand: 0,
-        events: events
-      }
+      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_demand(8, state(0, events))
 
-      assert OffBroadwayKafka.Producer.handle_demand(8, incoming_state) ==
-               {:noreply, events, %{demand: 3, events: []}}
+      assert broadway_messages(events) == sent_events
+      assert match?(%{demand: 3, events: []}, new_state)
     end
 
     test "it resets demand and empties events when all messages are requested" do
       events = create_messages(1..10)
 
-      incoming_state = %{
-        demand: 5,
-        events: events
-      }
+      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_demand(5, state(5, events))
 
-      assert OffBroadwayKafka.Producer.handle_demand(5, incoming_state) ==
-               {:noreply, events, %{demand: 0, events: []}}
+      assert broadway_messages(events) == sent_events
+      assert match?(%{demand: 0, events: []}, new_state)
     end
+  end
+
+  defp state(demand, events) do
+    %{
+      demand: demand,
+      events: events,
+      acknowledger: :acknowledger_pid
+    }
+  end
+
+  defp broadway_messages(messages) when is_list(messages) do
+    messages
+    |> Enum.map(fn %{offset: offset} = message ->
+      %Broadway.Message{
+        data: message,
+        acknowledger: {OffBroadwayKafka.Acknowledger, %{pid: :acknowledger_pid}, %{offset: offset}}
+      }
+    end)
+  end
+
+  defp broadway_messages(range, opts \\ []) do
+    create_messages(range, opts)
+    |> broadway_messages()
   end
 
   defp create_messages(range, opts \\ []) do
@@ -77,6 +106,7 @@ defmodule OffBroadwayKafka.ProducerTest do
       |> Keyword.put(:offset, i)
       |> Keyword.put(:key, "key - #{i}")
       |> Keyword.put(:value, "value - #{i}")
+      |> create_message()
     end)
   end
 

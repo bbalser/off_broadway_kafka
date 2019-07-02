@@ -28,7 +28,8 @@ defmodule OffBroadwayKafka.MixProject do
       {:placebo, "~> 1.2", only: [:dev, :test, :integration]},
       {:checkov, "~> 0.4.0", only: [:dev, :test, :integration]},
       {:divo, "~> 1.1", only: [:dev, :integration]},
-      {:divo_kafka, "~> 0.1.4", only: [:dev, :integration]}
+      {:divo_kafka, "~> 0.1.4", only: [:dev, :integration]},
+      {:patiently, "~> 0.2.0", only: [:test, :integration], override: true}
     ]
   end
 

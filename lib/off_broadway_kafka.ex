@@ -1,18 +1,20 @@
 defmodule OffBroadwayKafka do
-  @moduledoc """
-  Documentation for OffBroadwayKafka.
-  """
+  @callback broadway_config(String.t(), integer()) :: keyword()
+  @callback kafka_config() :: keyword()
 
-  @doc """
-  Hello world.
+  defmacro __using__(opts) do
+    quote do
+      use Broadway
+      @behaviour OffBroadwayKafka
 
-  ## Examples
+      def start_link(opts) do
+        kafka_config =
+          kafka_config()
+          |> Keyword.put(:handler, OffBroadwayKafka.Handler)
+          |> Keyword.put(:handler_init_args, broadway_module: __MODULE__)
 
-      iex> OffBroadwayKafka.hello()
-      :world
-
-  """
-  def hello do
-    :world
+        Elsa.Group.Supervisor.start_link(kafka_config)
+      end
+    end
   end
 end
