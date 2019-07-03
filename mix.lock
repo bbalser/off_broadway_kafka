@@ -5,7 +5,7 @@
   "crc32cer": {:hex, :crc32cer, "0.1.3", "8984906c4b4fae6aa292c48f286a1c83b19ad44bd102287acb94d696015967ce", [:make, :rebar, :rebar3], [], "hexpm"},
   "divo": {:hex, :divo, "1.1.9", "6f91b0a02bd97800eb9a99abd771b4c9b67d282b67abc223eb2832b93f557b7e", [:mix], [{:jason, "~> 1.1", [hex: :jason, repo: "hexpm", optional: false]}, {:patiently, "~> 0.2", [hex: :patiently, repo: "hexpm", optional: false]}], "hexpm"},
   "divo_kafka": {:hex, :divo_kafka, "0.1.4", "3c2ee36b41b629b1d2e5c7ce0c1642f90c956cc5afeb243db8cf23125fbba096", [:mix], [{:divo, "~> 1.1", [hex: :divo, repo: "hexpm", optional: false]}], "hexpm"},
-  "elsa": {:hex, :elsa, "0.5.0", "8cb7b82a3f8ec95b935ece97c5ddc87430f329a2ceac19c7c8621a6baa795f82", [:mix], [{:brod, "~> 3.7", [hex: :brod, repo: "hexpm", optional: false]}], "hexpm"},
+  "elsa": {:hex, :elsa, "0.6.0", "5ecab614e528d421fdf0758bc1b7e18705e3bc1eb0f1d36400433cdb92560397", [:mix], [{:brod, "~> 3.7", [hex: :brod, repo: "hexpm", optional: false]}], "hexpm"},
   "gen_stage": {:hex, :gen_stage, "0.14.2", "6a2a578a510c5bfca8a45e6b27552f613b41cf584b58210f017088d3d17d0b14", [:mix], [], "hexpm"},
   "jason": {:hex, :jason, "1.1.2", "b03dedea67a99223a2eaf9f1264ce37154564de899fd3d8b9a21b1a6fd64afe7", [:mix], [{:decimal, "~> 1.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm"},
   "kafka_protocol": {:hex, :kafka_protocol, "2.2.9", "fbec2ddb607a0cb05b832a93dcfdd4dbae6bd3b838c9aace93f6871bbb91f81f", [:rebar, :rebar3], [{:crc32cer, "0.1.3", [hex: :crc32cer, repo: "hexpm", optional: false]}, {:snappyer, "1.2.4", [hex: :snappyer, repo: "hexpm", optional: false]}], "hexpm"},

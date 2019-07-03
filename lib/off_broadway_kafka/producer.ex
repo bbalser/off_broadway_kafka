@@ -57,9 +57,12 @@ defmodule OffBroadwayKafka.Producer do
         events: Enum.drop(total_events, num_events_to_send)
     }
 
-    state = ensure_acknowledgers(state, events_to_send)
-    broadway_messages = wrap_events(state, events_to_send)
-    add_offsets_to_acknowledger(state, broadway_messages)
+    broadway_messages =
+      state
+      |> ensure_acknowledgers(events_to_send)
+      |> wrap_events(events_to_send)
+
+    add_offsets_to_acknowledger(broadway_messages)
 
     {:noreply, broadway_messages, new_state}
   end
@@ -69,17 +72,17 @@ defmodule OffBroadwayKafka.Producer do
     |> Enum.reduce(MapSet.new(), fn event, set -> MapSet.put(set, OffBroadwayKafka.Acknowledger.ack_ref(event)) end)
     |> Enum.reduce(state, fn ack_ref, acc ->
       case Map.has_key?(acc.acknowledgers, ack_ref) do
-        true -> state
+        true -> acc
         false ->
-          {:ok, pid} = OffBroadwayKafka.Acknowledger.start_link(name: state.name)
-          %{state | acknowledgers: Map.put(state.acknowledgers, ack_ref, pid)}
+          {:ok, pid} = OffBroadwayKafka.Acknowledger.start_link(name: acc.name)
+          %{acc | acknowledgers: Map.put(acc.acknowledgers, ack_ref, pid)}
       end
     end)
   end
 
-  defp add_offsets_to_acknowledger(_state, []), do: nil
+  defp add_offsets_to_acknowledger([]), do: nil
 
-  defp add_offsets_to_acknowledger(state, broadway_messages) do
+  defp add_offsets_to_acknowledger(broadway_messages) do
     broadway_messages
     |> Enum.map(fn %Broadway.Message{acknowledger: {_, ack_ref, %{offset: offset}}} -> {ack_ref, offset} end)
     |> Enum.group_by(fn {ack_ref, _} -> ack_ref end, fn {_, offset} -> offset end)
