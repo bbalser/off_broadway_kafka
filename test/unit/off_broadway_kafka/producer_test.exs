@@ -25,7 +25,7 @@ defmodule OffBroadwayKafka.ProducerTest do
     end
 
     test "sends incoming messages to the acknowledger" do
-      allow OffBroadwayKafka.Acknowledger.add_offsets(any(), any()), return: :ok
+      allow OffBroadwayKafka.Acknowledger.add_offsets(any(), any()), return: :ok, meck_options: [:passthrough]
 
       events = create_messages(1..10)
       state = state(10, events)
@@ -77,10 +77,14 @@ defmodule OffBroadwayKafka.ProducerTest do
   end
 
   defp state(demand, events) do
+    acknowledgers = Enum.reduce(events, %{}, fn event, acc ->
+      ack_ref = OffBroadwayKafka.Acknowledger.ack_ref(event)
+      Map.put(acc, ack_ref, :acknowledger_pid)
+    end)
     %{
       demand: demand,
       events: events,
-      acknowledger: :acknowledger_pid
+      acknowledgers: acknowledgers
     }
   end
 

@@ -35,7 +35,7 @@ defmodule OffBroadwayKafka.Producer do
   end
 
   defp maybe_start_elsa(opts) do
-    if Keyword.has_key?(opts, :brokers) do
+    if Keyword.has_key?(opts, :brokers) || Keyword.has_key?(opts, :endpoints) do
       config =
         opts
         |> Keyword.put(:handler, OffBroadwayKafka.ClassicHandler)

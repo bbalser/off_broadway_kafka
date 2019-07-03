@@ -15,13 +15,16 @@ defmodule OffBroadwayKafka.AcknowledgerTest do
     {:ok, pid} =
       Acknowledger.start_link(name: @name, topic: @topic, partition: @partition, generation_id: @generation_id)
 
-    [pid: pid]
+    [
+      pid: pid,
+      ack_ref: %{pid: pid, topic: @topic, partition: @partition, generation_id: @generation_id}
+    ]
   end
 
-  test "should ack offsets as acknowledged", %{pid: pid} do
+  test "should ack offsets as acknowledged", %{pid: pid, ack_ref: ack_ref} do
     Acknowledger.add_offsets(pid, 1..100)
 
-    Acknowledger.ack(%{pid: pid}, [broadway_message(1)], [])
+    Acknowledger.ack(ack_ref, [broadway_message(1)], [])
 
     Patiently.wait_for!(
       fn ->
@@ -32,19 +35,19 @@ defmodule OffBroadwayKafka.AcknowledgerTest do
     )
   end
 
-  test "should not ack offset if all previous offsets have not been acked", %{pid: pid} do
+  test "should not ack offset if all previous offsets have not been acked", %{pid: pid, ack_ref: ack_ref} do
     Acknowledger.add_offsets(pid, 1..100)
 
-    Acknowledger.ack(%{pid: pid}, [broadway_message(3)], [])
+    Acknowledger.ack(ack_ref, [broadway_message(3)], [])
 
     Process.sleep(1_000)
     refute_called Elsa.Group.Manager.ack(@name, @topic, @partition, @generation_id, any())
   end
 
-  test "should ack all messages up to the latest that have been processed", %{pid: pid} do
+  test "should ack all messages up to the latest that have been processed", %{pid: pid, ack_ref: ack_ref} do
     Acknowledger.add_offsets(pid, 1..100)
 
-    Acknowledger.ack(%{pid: pid}, broadway_messages(1..3), [])
+    Acknowledger.ack(ack_ref, broadway_messages(1..3), [])
 
     Patiently.wait_for!(
       fn ->
@@ -56,10 +59,10 @@ defmodule OffBroadwayKafka.AcknowledgerTest do
     )
   end
 
-  test "failed messages are also acked", %{pid: pid} do
+  test "failed messages are also acked", %{pid: pid, ack_ref: ack_ref} do
     Acknowledger.add_offsets(pid, 1..100)
 
-    Acknowledger.ack(%{pid: pid}, broadway_messages(1..27), broadway_messages(28..41))
+    Acknowledger.ack(ack_ref, broadway_messages(1..27), broadway_messages(28..41))
 
     Patiently.wait_for!(
       fn ->
