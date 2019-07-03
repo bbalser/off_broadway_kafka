@@ -5,9 +5,11 @@ defmodule OffBroadwayKafka.PerPartitionTest do
   test "it lives!!!" do
     {:ok, pid} = PerPartition.start_link(pid: self())
 
-    Elsa.produce([localhost: 9092], "topic1", [{"key1", "value1"}])
+    Elsa.produce([localhost: 9092], "topic1", [{"key1", "value1"}], partition: 0)
+    Elsa.produce([localhost: 9092], "topic1", [{"key2", "value2"}], partition: 1)
 
     assert_receive {:message, %Broadway.Message{data: %{key: "key1", value: "value1"}}}, 5_000
+    assert_receive {:message, %Broadway.Message{data: %{key: "key2", value: "value2"}}}, 5_000
   end
 end
 

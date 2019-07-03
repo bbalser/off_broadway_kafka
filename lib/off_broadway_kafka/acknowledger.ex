@@ -3,6 +3,10 @@ defmodule OffBroadwayKafka.Acknowledger do
   use GenServer
   require Logger
 
+  def ack_ref(%{topic: topic, partition: partition, generation_id: generation_id}) do
+    %{topic: topic, partition: partition, generation_id: generation_id}
+  end
+
   @impl Broadway.Acknowledger
   def ack(%{pid: pid} = ack_ref, successful, failed) do
     offsets =
@@ -50,7 +54,7 @@ defmodule OffBroadwayKafka.Acknowledger do
         nil
 
       offset ->
-        Logger.debug("Acking [topic: #{ack_ref.topic}, partition: #{ack_ref.partition}, offset: #{offset}]")
+        Logger.debug("Acking(#{inspect(self())}) [topic: #{ack_ref.topic}, partition: #{ack_ref.partition}, offset: #{offset}]")
         Elsa.Group.Manager.ack(state.name, ack_ref.topic, ack_ref.partition, ack_ref.generation_id, offset)
     end
 

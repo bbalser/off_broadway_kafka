@@ -1,29 +1,24 @@
 defmodule OffBroadwayKafka.Producer do
   use GenStage
 
-  def producer_name(name, topic, partition) do
-    :"off_broadway_producer_#{name}_#{topic}_#{partition}"
-  end
-
   def handle_messages(pid, messages) do
     send(pid, {:process_messages, messages})
   end
 
   def start_link(opts) do
-    name = Keyword.fetch!(opts, :name)
-    topic = Keyword.fetch!(opts, :topic)
-    partition = Keyword.fetch!(opts, :partition)
-
-    GenStage.start_link(__MODULE__, opts, name: producer_name(name, topic, partition))
+    GenStage.start_link(__MODULE__, opts)
   end
 
   def init(args) do
+    name = Keyword.fetch!(args, :name)
     {:ok, acknowledger} = OffBroadwayKafka.Acknowledger.start_link(args)
 
     state = %{
       demand: 0,
       events: [],
-      acknowledger: acknowledger
+      name: name,
+      acknowledger: acknowledger,
+      acknowledgers: %{}
     }
 
     {:producer, state}
@@ -49,35 +44,49 @@ defmodule OffBroadwayKafka.Producer do
         events: Enum.drop(total_events, num_events_to_send)
     }
 
-    add_offsets_to_acknowledger(state, events_to_send)
+    state = ensure_acknowledgers(state, events_to_send)
+    broadway_messages = wrap_events(state, events_to_send)
+    add_offsets_to_acknowledger(state, broadway_messages)
 
-    {:noreply, wrap_events(state, events_to_send), new_state}
+    {:noreply, broadway_messages, new_state}
+  end
+
+  defp ensure_acknowledgers(state, events) do
+    events
+    |> Enum.reduce(MapSet.new(), fn event, set -> MapSet.put(set, OffBroadwayKafka.Acknowledger.ack_ref(event)) end)
+    |> Enum.reduce(state, fn ack_ref, acc ->
+      case Map.has_key?(acc.acknowledgers, ack_ref) do
+        true -> state
+        false ->
+          {:ok, pid} = OffBroadwayKafka.Acknowledger.start_link(name: state.name)
+          %{state | acknowledgers: Map.put(state.acknowledgers, ack_ref, pid)}
+      end
+    end)
   end
 
   defp add_offsets_to_acknowledger(_state, []), do: nil
 
-  defp add_offsets_to_acknowledger(state, events) do
-    {min_offset, max_offset} =
-      events
-      |> Enum.map(fn event -> event.offset end)
-      |> Enum.min_max()
-
-    OffBroadwayKafka.Acknowledger.add_offsets(state.acknowledger, min_offset..max_offset)
+  defp add_offsets_to_acknowledger(state, broadway_messages) do
+    broadway_messages
+    |> Enum.map(fn %Broadway.Message{acknowledger: {_, ack_ref, %{offset: offset}}} -> {ack_ref, offset} end)
+    |> Enum.group_by(fn {ack_ref, _} -> ack_ref end, fn {_, offset} -> offset end)
+    |> Enum.map(fn {ack_ref, offsets} -> {ack_ref, Enum.min_max(offsets)} end)
+    |> Enum.each(fn {ack_ref, {min, max}} ->
+      OffBroadwayKafka.Acknowledger.add_offsets(ack_ref.pid, min..max)
+    end)
   end
 
   defp wrap_events(state, messages) do
     messages
     |> Enum.map(fn message ->
-      ack_ref = %{
-        pid: state.acknowledger,
-        topic: message.topic,
-        partition: message.partition,
-        generation_id: message.generation_id
-      }
+      ack_ref =
+        OffBroadwayKafka.Acknowledger.ack_ref(message)
+
+      acknowledger = Map.get(state.acknowledgers, ack_ref)
 
       %Broadway.Message{
         data: message,
-        acknowledger: {OffBroadwayKafka.Acknowledger, ack_ref, %{offset: message.offset}}
+        acknowledger: {OffBroadwayKafka.Acknowledger, Map.put(ack_ref, :pid, acknowledger), %{offset: message.offset}}
       }
     end)
   end
