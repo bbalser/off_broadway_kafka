@@ -23,7 +23,7 @@ defmodule OffBroadwayKafka.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:elsa, path: "../elsa"},
+      {:elsa, "~> 0.6"},
       {:broadway, "~> 0.3.0"},
       {:placebo, "~> 1.2", only: [:dev, :test, :integration]},
       {:checkov, "~> 0.4.0", only: [:dev, :test, :integration]},
