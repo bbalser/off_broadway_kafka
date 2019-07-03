@@ -1,4 +1,4 @@
-defmodule OffBroadwayKafka.Handler do
+defmodule OffBroadwayKafka.StarterHandler do
   use Elsa.Consumer.MessageHandler
 
   def init(args) do

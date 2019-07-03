@@ -1,5 +1,6 @@
 defmodule OffBroadwayKafka.Producer do
   use GenStage
+  require Logger
 
   def handle_messages(pid, messages) do
     send(pid, {:process_messages, messages})
@@ -11,14 +12,13 @@ defmodule OffBroadwayKafka.Producer do
 
   def init(args) do
     name = Keyword.fetch!(args, :name)
-    {:ok, acknowledger} = OffBroadwayKafka.Acknowledger.start_link(args)
 
     state = %{
       demand: 0,
       events: [],
       name: name,
-      acknowledger: acknowledger,
-      acknowledgers: %{}
+      acknowledgers: %{},
+      elsa_sup_pid: maybe_start_elsa(args)
     }
 
     {:producer, state}
@@ -32,6 +32,19 @@ defmodule OffBroadwayKafka.Producer do
   def handle_info({:process_messages, messages}, state) do
     total_events = state.events ++ messages
     send_events(state, state.demand, total_events)
+  end
+
+  defp maybe_start_elsa(opts) do
+    if Keyword.has_key?(opts, :brokers) do
+      config =
+        opts
+        |> Keyword.put(:handler, OffBroadwayKafka.ClassicHandler)
+        |> Keyword.put(:handler_init_args, %{producer: self()})
+
+      Logger.error("Starting Elsa from Producer")
+      {:ok, pid} = Elsa.Group.Supervisor.start_link(config)
+      pid
+    end
   end
 
   defp send_events(state, total_demand, total_events) do
