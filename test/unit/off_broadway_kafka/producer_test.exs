@@ -2,12 +2,12 @@ defmodule OffBroadwayKafka.ProducerTest do
   use ExUnit.Case
   use Placebo
 
-  describe "handle_cast/2" do
+  describe "handle_info/2" do
     test "it adds incoming messages to its state" do
       events = create_messages(0..5)
 
       {:noreply, sent_events, new_state} =
-        OffBroadwayKafka.Producer.handle_cast({:process_messages, events}, state(0, []))
+        OffBroadwayKafka.Producer.handle_info({:process_messages, events}, state(0, []))
 
       assert [] == sent_events
       assert events == new_state.events
@@ -18,7 +18,7 @@ defmodule OffBroadwayKafka.ProducerTest do
 
       state = state(10, create_messages(1..5))
 
-      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_cast({:process_messages, events}, state)
+      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_info({:process_messages, events}, state)
 
       assert broadway_messages(1..10) == sent_events
       assert match?(%{demand: 0, events: []}, new_state)
@@ -30,7 +30,7 @@ defmodule OffBroadwayKafka.ProducerTest do
       events = create_messages(1..10)
       state = state(10, events)
 
-      {:noreply, _sent_events, _new_state} = OffBroadwayKafka.Producer.handle_cast({:process_messages, events}, state)
+      {:noreply, _sent_events, _new_state} = OffBroadwayKafka.Producer.handle_info({:process_messages, events}, state)
 
       assert_called OffBroadwayKafka.Acknowledger.add_offsets(:acknowledger_pid, 1..10)
     end
@@ -89,7 +89,14 @@ defmodule OffBroadwayKafka.ProducerTest do
     |> Enum.map(fn %{offset: offset} = message ->
       %Broadway.Message{
         data: message,
-        acknowledger: {OffBroadwayKafka.Acknowledger, %{pid: :acknowledger_pid}, %{offset: offset}}
+        acknowledger:
+          {OffBroadwayKafka.Acknowledger,
+           %{
+             pid: :acknowledger_pid,
+             topic: message.topic,
+             partition: message.partition,
+             generation_id: message.generation_id
+           }, %{offset: offset}}
       }
     end)
   end

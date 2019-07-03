@@ -1,5 +1,5 @@
 defmodule OffBroadwayKafka do
-  @callback broadway_config(String.t(), integer()) :: keyword()
+  @callback broadway_config(keyword(), String.t(), integer()) :: keyword()
   @callback kafka_config() :: keyword()
 
   defmacro __using__(opts) do
@@ -11,7 +11,7 @@ defmodule OffBroadwayKafka do
         kafka_config =
           kafka_config()
           |> Keyword.put(:handler, OffBroadwayKafka.Handler)
-          |> Keyword.put(:handler_init_args, broadway_module: __MODULE__)
+          |> Keyword.put(:handler_init_args, broadway_module: __MODULE__, opts: opts)
 
         Elsa.Group.Supervisor.start_link(kafka_config)
       end

@@ -68,9 +68,16 @@ defmodule OffBroadwayKafka.Producer do
   defp wrap_events(state, messages) do
     messages
     |> Enum.map(fn message ->
+      ack_ref = %{
+        pid: state.acknowledger,
+        topic: message.topic,
+        partition: message.partition,
+        generation_id: message.generation_id
+      }
+
       %Broadway.Message{
         data: message,
-        acknowledger: {OffBroadwayKafka.Acknowledger, %{pid: state.acknowledger}, %{offset: message.offset}}
+        acknowledger: {OffBroadwayKafka.Acknowledger, ack_ref, %{offset: message.offset}}
       }
     end)
   end
