@@ -41,7 +41,7 @@ defmodule OffBroadwayKafka.MixProject do
     [
       maintainers: ["Brian Balser", "Jeff Grunewald"],
       licenses: ["Apache 2.0"],
-      links: %{"GitHub" => "https://github.com/bbalser/elsa"}
+      links: %{"GitHub" => "https://github.com/bbalser/off_broadway_kafka"}
     ]
   end
 
