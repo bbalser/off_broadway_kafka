@@ -4,27 +4,103 @@ defmodule OffBroadwayKafka.PerformanceTest do
   require Logger
   @moduletag :performance
 
-  @num_messages 1000
-  @num_partitions 1
+  @num_messages 10_000
+  @num_partitions 10
+  @input_topic "offbroadwaykafka-perf"
+  @output_topic "offbroadwaykafka-output"
 
   setup do
-    Elsa.create_topic([localhost: 9092], "offbroadwaykafka-perf", partitions: @num_partitions)
+    Logger.configure(level: :warn)
+    :ok = Elsa.create_topic([localhost: 9092], @input_topic, partitions: @num_partitions)
+    :ok = Elsa.create_topic([localhost: 9092], @output_topic)
 
-    messages =
-      0..@num_messages
-      |> Enum.map(fn index -> {"#{index}", create_message(index)} end)
-
-    Elsa.produce([localhost: 9092], "offbroadwaykafka-perf", messages)
+    Patiently.wait_for!(fn ->
+      true == Elsa.topic?([localhost: 9092], @input_topic)
+    end)
   end
 
   @tag timeout: :infinity
   test "performance test" do
-    {:ok, _, results} = Elsa.fetch([localhost: 9092], "offbroadwaykafka-perf", offset: 951)
-    assert Enum.count(results) == 50
+    Benchee.run(
+      %{
+        "classic" => fn %{stages: stages} -> classic_broadway(stages) end,
+        "per_partition" => fn %{stages: stages} -> per_partition_broadway(stages) end
+      },
+      inputs: %{
+        "1 stage" => %{stages: 1},
+        "10 stages" => %{stages: 10},
+        "100 stages" => %{stages: 100}
+      },
+      time: 10,
+      memory_time: 2,
+      after_each: fn _result -> Process.sleep(1_000) end
+    )
+  end
+
+  defp per_partition_broadway(stages) do
+    write_messages_to_input()
+
+    starting_offset = latest_offset()
+
+    {:ok, pid} =
+      PerPartitionBroadway.start_link(processor_stages: stages, topics: [@input_topic], output_topic: @output_topic)
+
+    Patiently.wait_for!(
+      fn ->
+        latest_offset = latest_offset()
+        Logger.warn("starting_offset: #{starting_offset} - latest offset: #{latest_offset}")
+        latest_offset - starting_offset >= @num_messages
+      end,
+      dwell: 200,
+      max_tries: 10_000
+    )
+
+    ensure_exit(pid)
+  end
+
+  defp classic_broadway(stages) do
+    write_messages_to_input()
+    starting_offset = latest_offset()
+
+    {:ok, pid} =
+      ClassicPerfBroadway.start_link(processor_stages: stages, topics: [@input_topic], output_topic: @output_topic)
+
+    Patiently.wait_for!(
+      fn ->
+        latest_offset = latest_offset()
+        Logger.warn("starting_offset: #{starting_offset} - latest offset: #{latest_offset}")
+        latest_offset - starting_offset >= @num_messages
+      end,
+      dwell: 200,
+      max_tries: 10_000
+    )
+
+    ensure_exit(pid)
+  end
+
+  defp ensure_exit(pid) do
+    ref = Process.monitor(pid)
+    Process.exit(pid, :normal)
+    assert_receive {:DOWN, ^ref, _, _, _}, 5_000
+  end
+
+  defp write_messages_to_input() do
+    messages =
+      0..(@num_messages - 1)
+      |> Enum.map(fn index -> {"#{index}", create_message(index)} end)
+
+    :ok = Elsa.produce([localhost: 9092], @input_topic, messages, partitioner: :random)
+  end
+
+  defp latest_offset() do
+    {:ok, latest_offset} = :brod.resolve_offset([localhost: 9092], @output_topic, 0, :latest)
+    latest_offset
   end
 
   defp create_message(index) do
-    "\{\"id\":\"id_#{index}\",\"name\":\"#{random_string(7)}\",\"age\":\"#{:crypto.rand_uniform(0,99)}\",\"description\":\"#{random_string(25)}\",\"address\":\"#{random_string(15)}\"}"
+    "\{\"id\":\"id_#{index}\",\"name\":\"#{random_string(7)}\",\"age\":\"#{:crypto.rand_uniform(0, 99)}\",\"description\":\"#{
+      random_string(25)
+    }\",\"address\":\"#{random_string(15)}\"}"
   end
 
   defp random_string(length) do
@@ -35,7 +111,7 @@ defmodule OffBroadwayKafka.PerformanceTest do
   end
 end
 
-defmodule ClassicBroadway do
+defmodule ClassicPerfBroadway do
   use Broadway
 
   def start_link(opts) do
@@ -43,7 +119,7 @@ defmodule ClassicBroadway do
       name: :client1,
       brokers: [localhost: 9092],
       group: "classic",
-      topics: ["topic1"],
+      topics: Keyword.get(opts, :topics),
       config: [
         begin_offset: :earliest
       ]
@@ -59,16 +135,52 @@ defmodule ClassicBroadway do
       ],
       processors: [
         default: [
-          stages: 1
+          stages: Keyword.get(opts, :processor_stages, 1)
         ]
       ],
-      context: %{pid: Keyword.get(opts, :pid)}
+      context: %{
+        topic: Keyword.get(opts, :output_topic)
+      }
     )
   end
 
   def handle_message(processor, message, context) do
-    IO.inspect(message, label: "message")
-    send(context.pid, {:message, message})
+    Elsa.produce([localhost: 9092], context.topic, message.data.value, partition: 0)
+    message
+  end
+end
+
+defmodule PerPartitionBroadway do
+  use OffBroadwayKafka
+
+  def kafka_config(opts) do
+    [
+      name: :per_partition,
+      brokers: [localhost: 9092],
+      group: "per_partition",
+      topics: Keyword.get(opts, :topics),
+      config: [
+        begin_offset: :earliest
+      ]
+    ]
+  end
+
+  def broadway_config(opts, topic, partition) do
+    [
+      name: :"broadway_per_partition_#{topic}_#{partition}",
+      processors: [
+        default: [
+          stages: Keyword.get(opts, :processor_stages, 1)
+        ]
+      ],
+      context: %{
+        topic: Keyword.get(opts, :output_topic)
+      }
+    ]
+  end
+
+  def handle_message(processor, message, context) do
+    Elsa.produce([localhost: 9092], context.topic, message.data.value, partition: 0)
     message
   end
 end

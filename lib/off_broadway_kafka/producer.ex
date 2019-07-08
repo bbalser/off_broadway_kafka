@@ -34,6 +34,15 @@ defmodule OffBroadwayKafka.Producer do
     send_events(state, state.demand, total_events)
   end
 
+  def terminate(reason, %{name: name, elsa_sup_pid: elsa}) when is_pid(elsa) do
+    Elsa.Group.Supervisor.stop(name)
+    reason
+  end
+
+  def terminate(reason, state) do
+    reason
+  end
+
   defp maybe_start_elsa(opts) do
     if Keyword.has_key?(opts, :brokers) || Keyword.has_key?(opts, :endpoints) do
       config =
@@ -41,7 +50,7 @@ defmodule OffBroadwayKafka.Producer do
         |> Keyword.put(:handler, OffBroadwayKafka.ClassicHandler)
         |> Keyword.put(:handler_init_args, %{producer: self()})
 
-      Logger.error("Starting Elsa from Producer")
+      Logger.error("Starting Elsa from Producer - #{inspect(config)}")
       {:ok, pid} = Elsa.Group.Supervisor.start_link(config)
       pid
     end

@@ -32,7 +32,8 @@ defmodule OffBroadwayKafka.MixProject do
       {:divo, "~> 1.1", only: [:dev, :integration]},
       {:divo_kafka, "~> 0.1.4", only: [:dev, :integration]},
       {:patiently, "~> 0.2.0", only: [:test, :integration], override: true},
-      {:ex_doc, "~> 0.20.2", only: [:dev], runtime: false}
+      {:ex_doc, "~> 0.20.2", only: [:dev], runtime: false},
+      {:benchee, "~> 1.0", only: [:integration]}
     ]
   end
 
