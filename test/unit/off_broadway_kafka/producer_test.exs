@@ -77,10 +77,12 @@ defmodule OffBroadwayKafka.ProducerTest do
   end
 
   defp state(demand, events) do
-    acknowledgers = Enum.reduce(events, %{}, fn event, acc ->
-      ack_ref = OffBroadwayKafka.Acknowledger.ack_ref(event)
-      Map.put(acc, ack_ref, :acknowledger_pid)
-    end)
+    acknowledgers =
+      Enum.reduce(events, %{}, fn event, acc ->
+        ack_ref = OffBroadwayKafka.Acknowledger.ack_ref(event)
+        Map.put(acc, ack_ref, :acknowledger_pid)
+      end)
+
     %{
       demand: demand,
       events: events,

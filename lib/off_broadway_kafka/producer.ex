@@ -72,7 +72,9 @@ defmodule OffBroadwayKafka.Producer do
     |> Enum.reduce(MapSet.new(), fn event, set -> MapSet.put(set, OffBroadwayKafka.Acknowledger.ack_ref(event)) end)
     |> Enum.reduce(state, fn ack_ref, acc ->
       case Map.has_key?(acc.acknowledgers, ack_ref) do
-        true -> acc
+        true ->
+          acc
+
         false ->
           {:ok, pid} = OffBroadwayKafka.Acknowledger.start_link(name: acc.name)
           %{acc | acknowledgers: Map.put(acc.acknowledgers, ack_ref, pid)}
@@ -95,8 +97,7 @@ defmodule OffBroadwayKafka.Producer do
   defp wrap_events(state, messages) do
     messages
     |> Enum.map(fn message ->
-      ack_ref =
-        OffBroadwayKafka.Acknowledger.ack_ref(message)
+      ack_ref = OffBroadwayKafka.Acknowledger.ack_ref(message)
 
       acknowledger = Map.get(state.acknowledgers, ack_ref)
 

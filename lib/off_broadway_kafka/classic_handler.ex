@@ -1,4 +1,5 @@
 defmodule OffBroadwayKafka.ClassicHandler do
+  @moduledoc false
   use Elsa.Consumer.MessageHandler
 
   def init(args) do

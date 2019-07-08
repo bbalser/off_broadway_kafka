@@ -8,6 +8,8 @@ defmodule OffBroadwayKafka.MixProject do
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      package: package(),
+      description: description(),
       elixirc_paths: elixirc_paths(Mix.env()),
       test_paths: test_paths(Mix.env())
     ]
@@ -29,8 +31,21 @@ defmodule OffBroadwayKafka.MixProject do
       {:checkov, "~> 0.4.0", only: [:dev, :test, :integration]},
       {:divo, "~> 1.1", only: [:dev, :integration]},
       {:divo_kafka, "~> 0.1.4", only: [:dev, :integration]},
-      {:patiently, "~> 0.2.0", only: [:test, :integration], override: true}
+      {:patiently, "~> 0.2.0", only: [:test, :integration], override: true},
+      {:ex_doc, "~> 0.20.2", only: [:dev], runtime: false}
     ]
+  end
+
+  defp package do
+    [
+      maintainers: ["Brian Balser", "Jeff Grunewald"],
+      licenses: ["Apache 2.0"],
+      links: %{"GitHub" => "https://github.com/bbalser/elsa"}
+    ]
+  end
+
+  defp description do
+    "Implementation of Broadway that supports a Kafka producer"
   end
 
   defp elixirc_paths(env) when env in [:test, :integration], do: ["lib", "test/support"]
