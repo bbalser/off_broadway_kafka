@@ -16,7 +16,7 @@ end
 defmodule PerPartition do
   use OffBroadwayKafka
 
-  def kafka_config() do
+  def kafka_config(_opts) do
     [
       name: :per_partition,
       brokers: [localhost: 9092],
