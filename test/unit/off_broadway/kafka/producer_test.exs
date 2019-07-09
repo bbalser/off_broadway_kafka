@@ -1,4 +1,4 @@
-defmodule OffBroadwayKafka.ProducerTest do
+defmodule OffBroadway.Kafka.ProducerTest do
   use ExUnit.Case
   use Placebo
 
@@ -7,7 +7,7 @@ defmodule OffBroadwayKafka.ProducerTest do
       events = create_messages(0..5)
 
       {:noreply, sent_events, new_state} =
-        OffBroadwayKafka.Producer.handle_info({:process_messages, events}, state(0, []))
+        OffBroadway.Kafka.Producer.handle_info({:process_messages, events}, state(0, []))
 
       assert [] == sent_events
       assert events == new_state.events
@@ -18,21 +18,21 @@ defmodule OffBroadwayKafka.ProducerTest do
 
       state = state(10, create_messages(1..5))
 
-      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_info({:process_messages, events}, state)
+      {:noreply, sent_events, new_state} = OffBroadway.Kafka.Producer.handle_info({:process_messages, events}, state)
 
       assert broadway_messages(1..10) == sent_events
       assert match?(%{demand: 0, events: []}, new_state)
     end
 
     test "sends incoming messages to the acknowledger" do
-      allow OffBroadwayKafka.Acknowledger.add_offsets(any(), any()), return: :ok, meck_options: [:passthrough]
+      allow OffBroadway.Kafka.Acknowledger.add_offsets(any(), any()), return: :ok, meck_options: [:passthrough]
 
       events = create_messages(1..10)
       state = state(10, events)
 
-      {:noreply, _sent_events, _new_state} = OffBroadwayKafka.Producer.handle_info({:process_messages, events}, state)
+      {:noreply, _sent_events, _new_state} = OffBroadway.Kafka.Producer.handle_info({:process_messages, events}, state)
 
-      assert_called OffBroadwayKafka.Acknowledger.add_offsets(:acknowledger_pid, 1..10)
+      assert_called OffBroadway.Kafka.Acknowledger.add_offsets(:acknowledger_pid, 1..10)
     end
   end
 
@@ -43,13 +43,13 @@ defmodule OffBroadwayKafka.ProducerTest do
         events: []
       }
 
-      assert OffBroadwayKafka.Producer.handle_demand(5, incoming_state) == {:noreply, [], %{demand: 7, events: []}}
+      assert OffBroadway.Kafka.Producer.handle_demand(5, incoming_state) == {:noreply, [], %{demand: 7, events: []}}
     end
 
     test "it returns events when pending events are available" do
       events = create_messages(1..10, topic: "test-topic")
 
-      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_demand(5, state(2, events))
+      {:noreply, sent_events, new_state} = OffBroadway.Kafka.Producer.handle_demand(5, state(2, events))
 
       expected_events = Enum.drop(events, 7)
 
@@ -60,7 +60,7 @@ defmodule OffBroadwayKafka.ProducerTest do
     test "it has pending demand if not enough events availabe" do
       events = create_messages(1..5)
 
-      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_demand(8, state(0, events))
+      {:noreply, sent_events, new_state} = OffBroadway.Kafka.Producer.handle_demand(8, state(0, events))
 
       assert broadway_messages(events) == sent_events
       assert match?(%{demand: 3, events: []}, new_state)
@@ -69,7 +69,7 @@ defmodule OffBroadwayKafka.ProducerTest do
     test "it resets demand and empties events when all messages are requested" do
       events = create_messages(1..10)
 
-      {:noreply, sent_events, new_state} = OffBroadwayKafka.Producer.handle_demand(5, state(5, events))
+      {:noreply, sent_events, new_state} = OffBroadway.Kafka.Producer.handle_demand(5, state(5, events))
 
       assert broadway_messages(events) == sent_events
       assert match?(%{demand: 0, events: []}, new_state)
@@ -79,7 +79,7 @@ defmodule OffBroadwayKafka.ProducerTest do
   defp state(demand, events) do
     acknowledgers =
       Enum.reduce(events, %{}, fn event, acc ->
-        ack_ref = OffBroadwayKafka.Acknowledger.ack_ref(event)
+        ack_ref = OffBroadway.Kafka.Acknowledger.ack_ref(event)
         Map.put(acc, ack_ref, :acknowledger_pid)
       end)
 
@@ -96,7 +96,7 @@ defmodule OffBroadwayKafka.ProducerTest do
       %Broadway.Message{
         data: message,
         acknowledger:
-          {OffBroadwayKafka.Acknowledger,
+          {OffBroadway.Kafka.Acknowledger,
            %{
              pid: :acknowledger_pid,
              topic: message.topic,

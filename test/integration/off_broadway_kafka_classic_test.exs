@@ -1,4 +1,4 @@
-defmodule OffBroadwayKafka.ClassicTest do
+defmodule OffBroadway.Kafka.ClassicTest do
   use ExUnit.Case
   use Divo
 
@@ -31,7 +31,7 @@ defmodule ClassicBroadway do
       name: __MODULE__,
       producers: [
         default: [
-          module: {OffBroadwayKafka.Producer, kafka_config},
+          module: {OffBroadway.Kafka.Producer, kafka_config},
           stages: 1
         ]
       ],

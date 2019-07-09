@@ -1,4 +1,4 @@
-defmodule OffBroadwayKafka.PerPartitionTest do
+defmodule OffBroadway.Kafka.PerPartitionTest do
   use ExUnit.Case
   use Divo
 
@@ -14,7 +14,7 @@ defmodule OffBroadwayKafka.PerPartitionTest do
 end
 
 defmodule PerPartition do
-  use OffBroadwayKafka
+  use OffBroadway.Kafka
 
   def kafka_config(_opts) do
     [

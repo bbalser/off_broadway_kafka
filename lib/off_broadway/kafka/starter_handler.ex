@@ -1,4 +1,4 @@
-defmodule OffBroadwayKafka.StarterHandler do
+defmodule OffBroadway.Kafka.StarterHandler do
   @moduledoc false
   use Elsa.Consumer.MessageHandler
 
@@ -8,7 +8,7 @@ defmodule OffBroadwayKafka.StarterHandler do
 
     producers = [
       default: [
-        module: {OffBroadwayKafka.Producer, [name: name()]},
+        module: {OffBroadway.Kafka.Producer, [name: name()]},
         stages: 1
       ]
     ]
@@ -27,7 +27,7 @@ defmodule OffBroadwayKafka.StarterHandler do
   end
 
   def handle_messages(messages, state) do
-    OffBroadwayKafka.Producer.handle_messages(state.producer, messages)
+    OffBroadway.Kafka.Producer.handle_messages(state.producer, messages)
     {:no_ack, state}
   end
 end

@@ -1,4 +1,4 @@
-defmodule OffBroadwayKafka.ClassicHandler do
+defmodule OffBroadway.Kafka.ClassicHandler do
   @moduledoc false
   use Elsa.Consumer.MessageHandler
 
@@ -7,7 +7,7 @@ defmodule OffBroadwayKafka.ClassicHandler do
   end
 
   def handle_messages(messages, state) do
-    OffBroadwayKafka.Producer.handle_messages(state.producer, messages)
+    OffBroadway.Kafka.Producer.handle_messages(state.producer, messages)
     {:no_ack, state}
   end
 end
