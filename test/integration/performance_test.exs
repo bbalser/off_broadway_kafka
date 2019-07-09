@@ -1,4 +1,4 @@
-defmodule OffBroadwayKafka.PerformanceTest do
+defmodule OffBroadway.Kafka.PerformanceTest do
   use ExUnit.Case
   use Divo
   require Logger
@@ -129,7 +129,7 @@ defmodule ClassicPerfBroadway do
       name: __MODULE__,
       producers: [
         default: [
-          module: {OffBroadwayKafka.Producer, kafka_config},
+          module: {OffBroadway.Kafka.Producer, kafka_config},
           stages: 1
         ]
       ],
@@ -151,7 +151,7 @@ defmodule ClassicPerfBroadway do
 end
 
 defmodule PerPartitionBroadway do
-  use OffBroadwayKafka
+  use OffBroadway.Kafka
 
   def kafka_config(opts) do
     [

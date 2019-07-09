@@ -1,4 +1,4 @@
-defmodule OffBroadwayKafka.Producer do
+defmodule OffBroadway.Kafka.Producer do
   use GenStage
   require Logger
 
@@ -47,7 +47,7 @@ defmodule OffBroadwayKafka.Producer do
     if Keyword.has_key?(opts, :brokers) || Keyword.has_key?(opts, :endpoints) do
       config =
         opts
-        |> Keyword.put(:handler, OffBroadwayKafka.ClassicHandler)
+        |> Keyword.put(:handler, OffBroadway.Kafka.ClassicHandler)
         |> Keyword.put(:handler_init_args, %{producer: self()})
 
       Logger.error("Starting Elsa from Producer - #{inspect(config)}")
@@ -78,14 +78,14 @@ defmodule OffBroadwayKafka.Producer do
 
   defp ensure_acknowledgers(state, events) do
     events
-    |> Enum.reduce(MapSet.new(), fn event, set -> MapSet.put(set, OffBroadwayKafka.Acknowledger.ack_ref(event)) end)
+    |> Enum.reduce(MapSet.new(), fn event, set -> MapSet.put(set, OffBroadway.Kafka.Acknowledger.ack_ref(event)) end)
     |> Enum.reduce(state, fn ack_ref, acc ->
       case Map.has_key?(acc.acknowledgers, ack_ref) do
         true ->
           acc
 
         false ->
-          {:ok, pid} = OffBroadwayKafka.Acknowledger.start_link(name: acc.name)
+          {:ok, pid} = OffBroadway.Kafka.Acknowledger.start_link(name: acc.name)
           %{acc | acknowledgers: Map.put(acc.acknowledgers, ack_ref, pid)}
       end
     end)
@@ -99,20 +99,20 @@ defmodule OffBroadwayKafka.Producer do
     |> Enum.group_by(fn {ack_ref, _} -> ack_ref end, fn {_, offset} -> offset end)
     |> Enum.map(fn {ack_ref, offsets} -> {ack_ref, Enum.min_max(offsets)} end)
     |> Enum.each(fn {ack_ref, {min, max}} ->
-      OffBroadwayKafka.Acknowledger.add_offsets(ack_ref.pid, min..max)
+      OffBroadway.Kafka.Acknowledger.add_offsets(ack_ref.pid, min..max)
     end)
   end
 
   defp wrap_events(state, messages) do
     messages
     |> Enum.map(fn message ->
-      ack_ref = OffBroadwayKafka.Acknowledger.ack_ref(message)
+      ack_ref = OffBroadway.Kafka.Acknowledger.ack_ref(message)
 
       acknowledger = Map.get(state.acknowledgers, ack_ref)
 
       %Broadway.Message{
         data: message,
-        acknowledger: {OffBroadwayKafka.Acknowledger, Map.put(ack_ref, :pid, acknowledger), %{offset: message.offset}}
+        acknowledger: {OffBroadway.Kafka.Acknowledger, Map.put(ack_ref, :pid, acknowledger), %{offset: message.offset}}
       }
     end)
   end

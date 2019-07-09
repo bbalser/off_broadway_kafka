@@ -1,8 +1,8 @@
-defmodule OffBroadwayKafka.AcknowledgerTest do
+defmodule OffBroadway.Kafka.AcknowledgerTest do
   use ExUnit.Case
   use Placebo
 
-  alias OffBroadwayKafka.Acknowledger
+  alias OffBroadway.Kafka.Acknowledger
 
   @name :name
   @topic "topic-1"

@@ -1,4 +1,4 @@
-defmodule OffBroadwayKafka.Acknowledger do
+defmodule OffBroadway.Kafka.Acknowledger do
   @moduledoc false
   @behaviour Broadway.Acknowledger
   use GenServer
