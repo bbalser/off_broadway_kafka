@@ -4,7 +4,7 @@ defmodule OffBroadwayKafka.MixProject do
   def project do
     [
       app: :off_broadway_kafka,
-      version: "0.2.0",
+      version: "0.2.1",
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -25,7 +25,7 @@ defmodule OffBroadwayKafka.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:elsa, "~> 0.6"},
+      {:elsa, "~> 0.7"},
       {:broadway, "~> 0.3.0"},
       {:placebo, "~> 1.2", only: [:dev, :test, :integration]},
       {:checkov, "~> 0.4.0", only: [:dev, :test, :integration]},
