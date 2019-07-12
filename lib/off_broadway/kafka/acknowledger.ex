@@ -1,13 +1,32 @@
 defmodule OffBroadway.Kafka.Acknowledger do
-  @moduledoc false
+  @moduledoc """
+  Implements the Broadway acknowledger behaviour, handling acking of processed
+  messages back to Kafka once they have been successfully processed. Message
+  ack references are stored in ETS as an ordered set and acknowledgements are
+  performed in the order received rather than the order processed to ensure that
+  a failure of the Broadway pipeline does not allow messages received later but
+  processed faster to erroneously mark lost messages as acknowledged when they
+  should instead be reprocessed on recovery of the pipeline.
+  """
   @behaviour Broadway.Acknowledger
   use GenServer
   require Logger
 
+  @doc """
+  Constructs an ack_ref record for storing the status of message acknowledgement
+  in ETS.
+  """
+  @spec ack_ref(map()) :: map()
   def ack_ref(%{topic: topic, partition: partition, generation_id: generation_id}) do
     %{topic: topic, partition: partition, generation_id: generation_id}
   end
 
+  @doc """
+  Acknowledges processed messages to Kafka. Due to Kafka's requirement to maintain
+  message order for proper offset management, concatenates successful and failed
+  messages together and stores the total offset to return for acknowledgement.
+  """
+  @spec ack(map(), [Broadway.Message.t()], [Broadway.Message.t()]) :: :ok
   @impl Broadway.Acknowledger
   def ack(%{pid: pid} = ack_ref, successful, failed) do
     offsets =
@@ -18,10 +37,19 @@ defmodule OffBroadway.Kafka.Acknowledger do
     GenServer.cast(pid, {:ack, ack_ref, offsets})
   end
 
+  @doc """
+  Adds a set of messages, represented by a contiguous
+  range, to ETS for tracking acknowledgement in the proper order.
+  """
+  @spec add_offsets(pid(), Range.t()) :: :ok
   def add_offsets(pid, range) do
     GenServer.cast(pid, {:add_offsets, range})
   end
 
+  @doc """
+  Creates an acknowledger GenServer process and links it to
+  the current process.
+  """
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end
