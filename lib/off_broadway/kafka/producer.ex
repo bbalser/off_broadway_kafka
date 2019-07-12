@@ -30,8 +30,8 @@ defmodule OffBroadway.Kafka.Producer do
   for the producer GenServer.
 
     * if args contain a value for :brokers or :endpoints,
-    creates a handler config and passes it to Elsa library to
-    start a consumer group supervisor and store the returned
+    creates a handler config and passes it to the Elsa library
+    to start a consumer group supervisor and store the returned
     pid in the Broadway Producer state for reference.
   """
   def init(args) do

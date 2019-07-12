@@ -1,4 +1,4 @@
-defmodule OffBroadway.Kafka.StarterHandler do
+defmodule OffBroadway.Kafka.ShowtimeHandler do
   @moduledoc """
   Implements message handling using an opinionated
   interpretation of Broadway for interaction with Kafka.

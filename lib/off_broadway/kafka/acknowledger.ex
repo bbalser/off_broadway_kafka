@@ -12,11 +12,13 @@ defmodule OffBroadway.Kafka.Acknowledger do
   use GenServer
   require Logger
 
+  @type ack_ref() :: %{topic: String.t(), partition: non_neg_integer(), generation_id: non_neg_integer() | nil}
+
   @doc """
   Constructs an ack_ref record for storing the status of message acknowledgement
   in ETS.
   """
-  @spec ack_ref(map()) :: map()
+  @spec ack_ref(Elsa.Message.t()) :: ack_ref()
   def ack_ref(%{topic: topic, partition: partition, generation_id: generation_id}) do
     %{topic: topic, partition: partition, generation_id: generation_id}
   end
