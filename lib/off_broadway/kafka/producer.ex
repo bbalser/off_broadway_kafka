@@ -1,15 +1,39 @@
 defmodule OffBroadway.Kafka.Producer do
+  @moduledoc """
+  Implements the logic to handle incoming messages through
+  the broadway pipeline. Sends messages to the `handle_info/2`
+  and `handle_demand/2` functions based on requests and tracks
+  acknowledgements in state.
+  """
   use GenStage
   require Logger
 
+  @doc """
+  Convenience function for sending messages to be
+  produced via the `handle_info/2` function.
+  """
+  @spec handle_messages(pid(), term()) :: :ok
   def handle_messages(pid, messages) do
     send(pid, {:process_messages, messages})
   end
 
+  @doc """
+  Starts an OffBroadway.Kafka producer process linked to the current
+  process.
+  """
   def start_link(opts) do
     GenStage.start_link(__MODULE__, opts)
   end
 
+  @doc """
+  Names the producer process and initializes state
+  for the producer GenServer.
+
+    * if args contain a value for :brokers or :endpoints,
+    creates a handler config and passes it to the Elsa library
+    to start a consumer group supervisor and store the returned
+    pid in the Broadway Producer state for reference.
+  """
   def init(args) do
     name = Keyword.fetch!(args, :name)
 
@@ -24,22 +48,38 @@ defmodule OffBroadway.Kafka.Producer do
     {:producer, state}
   end
 
+  @doc """
+  Handle message events based on demand. Updates the
+  demand based on the existing demand in state and sends the
+  requested number of message events.
+  """
+  @spec handle_demand(non_neg_integer(), map()) :: :ok
   def handle_demand(demand, state) do
     total_demand = demand + state.demand
     send_events(state, total_demand, state.events)
   end
 
+  @doc """
+  Handle message events based on incoming messages. Updates the
+  total message events based on existing messages and incoming
+  messages and sends the requested events.
+  """
+  @spec handle_info({:process_messages, [term()]}, map()) :: :ok
   def handle_info({:process_messages, messages}, state) do
     total_events = state.events ++ messages
     send_events(state, state.demand, total_events)
   end
 
+  @doc """
+  Handles termination of the Elsa consumer group supervisor process if one exists.
+  """
+  @spec terminate(term(), map()) :: :ok
   def terminate(reason, %{name: name, elsa_sup_pid: elsa}) when is_pid(elsa) do
     Elsa.Group.Supervisor.stop(name)
     reason
   end
 
-  def terminate(reason, state) do
+  def terminate(reason, _state) do
     reason
   end
 
@@ -50,7 +90,7 @@ defmodule OffBroadway.Kafka.Producer do
         |> Keyword.put(:handler, OffBroadway.Kafka.ClassicHandler)
         |> Keyword.put(:handler_init_args, %{producer: self()})
 
-      Logger.error("Starting Elsa from Producer - #{inspect(config)}")
+      Logger.info("Starting Elsa from Producer - #{inspect(config)}")
       {:ok, pid} = Elsa.Group.Supervisor.start_link(config)
       pid
     end

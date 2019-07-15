@@ -3,7 +3,7 @@ defmodule OffBroadway.Kafka.ClassicTest do
   use Divo
 
   test "it lives, classicly!" do
-    {:ok, broadway} = ClassicBroadway.start_link(pid: self())
+    {:ok, _broadway} = ClassicBroadway.start_link(pid: self())
 
     Elsa.produce([localhost: 9092], "topic1", [{"key1", "value1"}], partition: 0)
     Elsa.produce([localhost: 9092], "topic1", [{"key2", "value2"}], partition: 1)
@@ -44,7 +44,7 @@ defmodule ClassicBroadway do
     )
   end
 
-  def handle_message(processor, message, context) do
+  def handle_message(_processor, message, context) do
     IO.inspect(message, label: "message")
     send(context.pid, {:message, message})
     message

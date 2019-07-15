@@ -144,7 +144,7 @@ defmodule ClassicPerfBroadway do
     )
   end
 
-  def handle_message(processor, message, context) do
+  def handle_message(_processor, message, context) do
     Elsa.produce([localhost: 9092], context.topic, message.data.value, partition: 0)
     message
   end
@@ -179,7 +179,7 @@ defmodule PerPartitionBroadway do
     ]
   end
 
-  def handle_message(processor, message, context) do
+  def handle_message(_processor, message, context) do
     Elsa.produce([localhost: 9092], context.topic, message.data.value, partition: 0)
     message
   end
