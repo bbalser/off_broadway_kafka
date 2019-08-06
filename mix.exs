@@ -26,7 +26,7 @@ defmodule OffBroadwayKafka.MixProject do
   defp deps do
     [
       {:elsa, "~> 0.7"},
-      {:broadway, "~> 0.3.0"},
+      {:broadway, "~> 0.4.0"},
       {:placebo, "~> 1.2", only: [:dev, :test, :integration]},
       {:checkov, "~> 0.4.0", only: [:dev, :test, :integration]},
       {:divo, "~> 1.1", only: [:dev, :integration]},
