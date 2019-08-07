@@ -36,7 +36,7 @@ defmodule OffBroadway.Kafka.Acknowledger do
       |> Enum.concat(failed)
       |> Enum.map(fn %{acknowledger: {_, _, %{offset: offset}}} -> offset end)
 
-    GenServer.cast(pid, {:ack, ack_ref, offsets})
+    GenServer.call(pid, {:ack, ack_ref, offsets})
   end
 
   @doc """
@@ -75,7 +75,7 @@ defmodule OffBroadway.Kafka.Acknowledger do
   end
 
   @impl GenServer
-  def handle_cast({:ack, ack_ref, offsets}, state) do
+  def handle_call({:ack, ack_ref, offsets}, _from, state) do
     Enum.each(offsets, fn offset ->
       :ets.insert(state.table, {offset, true})
     end)
@@ -92,7 +92,7 @@ defmodule OffBroadway.Kafka.Acknowledger do
         Elsa.Group.Manager.ack(state.name, ack_ref.topic, ack_ref.partition, ack_ref.generation_id, offset)
     end
 
-    {:noreply, state}
+    {:reply, :ok, state}
   end
 
   defp get_offset_to_ack(table, previous \\ nil) do

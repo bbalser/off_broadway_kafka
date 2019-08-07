@@ -100,17 +100,15 @@ defmodule OffBroadway.Kafka.Producer do
     events_to_send = Enum.take(total_events, total_demand)
     num_events_to_send = length(events_to_send)
 
-    new_state = %{
-      state
-      | demand: total_demand - num_events_to_send,
-        events: Enum.drop(total_events, num_events_to_send)
-    }
-
-    broadway_messages =
-      state
+    new_state =
+      %{
+        state
+        | demand: total_demand - num_events_to_send,
+          events: Enum.drop(total_events, num_events_to_send)
+      }
       |> ensure_acknowledgers(events_to_send)
-      |> wrap_events(events_to_send)
 
+    broadway_messages = wrap_events(new_state, events_to_send)
     add_offsets_to_acknowledger(broadway_messages)
 
     {:noreply, broadway_messages, new_state}
