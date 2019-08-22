@@ -12,8 +12,10 @@ defmodule OffBroadway.Kafka.AckingEventTest do
     :ok
   end
 
+  @tag timeout: :infinity
   test "should ack events in order" do
-    {:ok, broadway} = AckingEventBroadway.start_link(pid: self())
+    {:ok, message_store} = MessageStore.start_link([])
+    {:ok, broadway} = AckingEventBroadway.start_link(pid: message_store, name: :first_broadway)
 
     message_counts = %{
       0 => random(10_000..11_000),
@@ -26,6 +28,16 @@ defmodule OffBroadway.Kafka.AckingEventTest do
       Elsa.produce(@endpoints, @topic, messages, partition: partition)
     end)
 
+    Process.sleep(2_000)
+
+    {:ok, broadway} = AckingEventBroadway.start_link(pid: message_store, name: :second_broadway)
+
+    Process.sleep(30_000)
+
+    Enum.each(message_counts, fn {partition, count} ->
+      assert_messages_received(partition, count)
+    end)
+
     Enum.each(message_counts, fn {partition, count} ->
       assert_group_offset(partition, count)
     end)
@@ -34,6 +46,18 @@ defmodule OffBroadway.Kafka.AckingEventTest do
   defp random(range) do
     start..stop = range
     (:rand.uniform() * (stop - start) + start) |> round
+  end
+
+  defp assert_messages_received(partition, count) do
+    Patiently.wait_for!(
+      fn ->
+        messages = MessageStore.get_counts(partition)
+        Logger.info("Currently received #{length(messages)} for partition #{partition}")
+        length(messages) == count
+      end,
+      dwell: 500,
+      max_tries: 20
+    )
   end
 
   defp assert_group_offset(partition, offset) do
@@ -49,7 +73,7 @@ defmodule OffBroadway.Kafka.AckingEventTest do
   end
 
   defp get_group_offset(partition) do
-    case :brod.fetch_committed_offsets(:dup_client, @group) do
+    case :brod.fetch_committed_offsets(:first_broadway, @group) |> IO.inspect(label: "commited offsets") do
       {:error, _} ->
         :undefined
 
@@ -66,6 +90,39 @@ defmodule OffBroadway.Kafka.AckingEventTest do
   end
 end
 
+defmodule MessageStore do
+  use GenServer
+  require Logger
+
+  def get_counts(partition) do
+    GenServer.call(__MODULE__, {:get_counts, partition})
+  end
+
+  def start_link(_opts) do
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+  end
+
+  def init([]) do
+    {:ok, %{}}
+  end
+
+  def handle_call({:get_counts, partition}, _from, state) do
+    t = Enum.map(state, fn {partition, messages} -> {partition, length(messages)} end) |> Enum.into(%{})
+    Logger.debug(fn -> "Current counts : #{inspect(t)}" end)
+    messages = Map.get(state, partition, [])
+    {:reply, messages, state}
+  end
+
+  def handle_info({:message, message}, state) do
+    partition = message.data.partition
+    {:noreply, Map.update(state, partition, [message], fn msgs -> msgs ++ [message] end)}
+  end
+
+  def handle_info(_msg, state) do
+    {:noreply, state}
+  end
+end
+
 defmodule AckingEventBroadway do
   use Broadway
 
@@ -75,17 +132,20 @@ defmodule AckingEventBroadway do
 
   def start_link(opts) do
     kafka_config = [
-      name: :dup_client,
+      name: Keyword.fetch!(opts, :name),
       brokers: @endpoints,
       group: @group,
       topics: [@topic],
       config: [
-        begin_offset: :earliest
+        begin_offset: :earliest,
+        prefetch_bytes: 0,
+        prefetch_count: 100,
+        session_timeout_seconds: 120
       ]
     ]
 
     Broadway.start_link(__MODULE__,
-      name: __MODULE__,
+      name: :"#{Keyword.fetch!(opts, :name)}_broadway",
       producers: [
         default: [
           module: {OffBroadway.Kafka.Producer, kafka_config},
@@ -94,7 +154,7 @@ defmodule AckingEventBroadway do
       ],
       processors: [
         default: [
-          stages: 1
+          stages: 8
         ]
       ],
       batchers: [
@@ -109,6 +169,7 @@ defmodule AckingEventBroadway do
   end
 
   def handle_message(_processor, message, context) do
+    Process.sleep(1)
     send(context.pid, {:message, message})
     message
   end

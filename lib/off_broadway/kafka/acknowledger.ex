@@ -48,6 +48,10 @@ defmodule OffBroadway.Kafka.Acknowledger do
     GenServer.cast(pid, {:add_offsets, range})
   end
 
+  def is_empty?(pid) do
+    GenServer.call(pid, :is_empty?)
+  end
+
   @doc """
   Creates an acknowledger GenServer process and links it to
   the current process.
@@ -93,6 +97,16 @@ defmodule OffBroadway.Kafka.Acknowledger do
     end
 
     {:reply, :ok, state}
+  end
+
+  def handle_call(:is_empty?, _from, state) do
+    result =
+      case :ets.first(state.table) do
+        :"$end_of_table" -> true
+        _ -> false
+      end
+
+    {:reply, result, state}
   end
 
   defp get_offset_to_ack(table, previous \\ nil) do

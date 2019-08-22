@@ -6,6 +6,7 @@ defmodule OffBroadway.Kafka.Producer do
   acknowledgements in state.
   """
   use GenStage
+  use Retry
   require Logger
 
   @doc """
@@ -15,6 +16,15 @@ defmodule OffBroadway.Kafka.Producer do
   @spec handle_messages(pid(), term()) :: :ok
   def handle_messages(pid, messages) do
     send(pid, {:process_messages, messages})
+  end
+
+  @spec assignments_revoked(pid()) :: :ok
+  def assignments_revoked(pid) do
+    send(pid, {:assignments_revoked, self()})
+
+    receive do
+      {:assignments_revoked, :complete} -> :ok
+    end
   end
 
   @doc """
@@ -71,6 +81,26 @@ defmodule OffBroadway.Kafka.Producer do
   end
 
   @doc """
+  Handle assignments revoked by kafka broker.  Should wait until
+  acknowledgers and reported as empty and clean out any events in queue
+  """
+  @spec handle_info({:assignments_revoked, pid()}, map()) :: {:noreply, list(), map()}
+  def handle_info({:assignments_revoked, caller}, state) do
+    acknowledgers = Map.values(state.acknowledgers)
+
+    wait constant_backoff(100) do
+      Enum.all?(acknowledgers, &OffBroadway.Kafka.Acknowledger.is_empty?/1)
+    after
+      _ -> true
+    else
+      _ -> false
+    end
+
+    send(caller, {:assignments_revoked, :complete})
+    {:noreply, [], %{state | events: []}}
+  end
+
+  @doc """
   Handles termination of the Elsa consumer group supervisor process if one exists.
   """
   @spec terminate(term(), map()) :: :ok
@@ -84,11 +114,17 @@ defmodule OffBroadway.Kafka.Producer do
   end
 
   defp maybe_start_elsa(opts) do
+    producer_pid = self()
+
     if Keyword.has_key?(opts, :brokers) || Keyword.has_key?(opts, :endpoints) do
       config =
         opts
         |> Keyword.put(:handler, OffBroadway.Kafka.ClassicHandler)
         |> Keyword.put(:handler_init_args, %{producer: self()})
+        |> Keyword.put(:assignments_revoked_handler, fn ->
+          OffBroadway.Kafka.Producer.assignments_revoked(producer_pid)
+        end)
+        |> Keyword.put(:direct_ack, true)
 
       Logger.info("Starting Elsa from Producer - #{inspect(config)}")
       {:ok, pid} = Elsa.Group.Supervisor.start_link(config)
