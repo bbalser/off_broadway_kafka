@@ -17,6 +17,18 @@ defmodule OffBroadway.Kafka.PerformanceTest do
     Patiently.wait_for!(fn ->
       true == Elsa.topic?([localhost: 9092], @input_topic)
     end)
+
+    {:ok, _elsa} =
+      Elsa.Supervisor.start_link(
+        connection: :elsa_writer,
+        endpoints: [localhost: 9092],
+        producer: [
+          [topic: @input_topic],
+          [topic: @output_topic]
+        ]
+      )
+
+    :ok
   end
 
   @tag timeout: :infinity
@@ -89,7 +101,7 @@ defmodule OffBroadway.Kafka.PerformanceTest do
       0..(@num_messages - 1)
       |> Enum.map(fn index -> {"#{index}", create_message(index)} end)
 
-    :ok = Elsa.produce([localhost: 9092], @input_topic, messages, partitioner: :random)
+    :ok = Elsa.produce(:elsa_writer, @input_topic, messages, partitioner: :random)
   end
 
   defp latest_offset() do
@@ -116,12 +128,14 @@ defmodule ClassicPerfBroadway do
 
   def start_link(opts) do
     kafka_config = [
-      name: :client1,
-      brokers: [localhost: 9092],
-      group: "classic",
-      topics: Keyword.get(opts, :topics),
-      config: [
-        begin_offset: :earliest
+      connection: :client1,
+      endpoints: [localhost: 9092],
+      group_consumer: [
+        group: "group1",
+        topics: Keyword.get(opts, :topics),
+        config: [
+          begin_offset: :earliest
+        ]
       ]
     ]
 
@@ -145,7 +159,7 @@ defmodule ClassicPerfBroadway do
   end
 
   def handle_message(_processor, message, context) do
-    Elsa.produce([localhost: 9092], context.topic, message.data.value, partition: 0)
+    Elsa.produce(:elsa_writer, context.topic, message.data.value, partition: 0)
     message
   end
 end
@@ -155,12 +169,14 @@ defmodule PerPartitionBroadway do
 
   def kafka_config(opts) do
     [
-      name: :per_partition,
-      brokers: [localhost: 9092],
-      group: "per_partition",
-      topics: Keyword.get(opts, :topics),
-      config: [
-        begin_offset: :earliest
+      connection: :per_partition,
+      endpoints: [localhost: 9092],
+      group_consumer: [
+        group: "group1",
+        topics: Keyword.get(opts, :topics),
+        config: [
+          begin_offset: :earliest
+        ]
       ]
     ]
   end
@@ -180,7 +196,7 @@ defmodule PerPartitionBroadway do
   end
 
   def handle_message(_processor, message, context) do
-    Elsa.produce([localhost: 9092], context.topic, message.data.value, partition: 0)
+    Elsa.produce(:elsa_writer, context.topic, message.data.value, partition: 0)
     message
   end
 end

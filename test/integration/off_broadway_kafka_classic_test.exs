@@ -3,13 +3,18 @@ defmodule OffBroadway.Kafka.ClassicTest do
   use Divo
 
   test "it lives, classicly!" do
-    {:ok, _broadway} = ClassicBroadway.start_link(pid: self())
+    {:ok, broadway} = ClassicBroadway.start_link(pid: self())
 
     Elsa.produce([localhost: 9092], "topic1", [{"key1", "value1"}], partition: 0)
     Elsa.produce([localhost: 9092], "topic1", [{"key2", "value2"}], partition: 1)
 
     assert_receive {:message, %Broadway.Message{data: %{key: "key1", value: "value1"}}}, 5_000
     assert_receive {:message, %Broadway.Message{data: %{key: "key2", value: "value2"}}}, 5_000
+
+    ref = Process.monitor(broadway)
+    Process.unlink(broadway)
+    Process.exit(broadway, :shutdown)
+    assert_receive {:DOWN, ^ref, _, _, _}, 5_000
   end
 end
 
@@ -18,12 +23,14 @@ defmodule ClassicBroadway do
 
   def start_link(opts) do
     kafka_config = [
-      name: :client1,
-      brokers: [localhost: 9092],
-      group: "classic",
-      topics: ["topic1"],
-      config: [
-        begin_offset: :earliest
+      connection: :client1,
+      endpoints: [localhost: 9092],
+      group_consumer: [
+        group: "classic",
+        topics: ["topic1"],
+        config: [
+          begin_offset: :earliest
+        ]
       ]
     ]
 

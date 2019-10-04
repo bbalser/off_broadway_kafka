@@ -45,12 +45,12 @@ defmodule OffBroadway.Kafka.Producer do
     pid in the Broadway Producer state for reference.
   """
   def init(args) do
-    name = Keyword.fetch!(args, :name)
+    connection = Keyword.fetch!(args, :connection)
 
     state = %{
       demand: 0,
       events: [],
-      name: name,
+      connection: connection,
       acknowledgers: %{},
       elsa_sup_pid: maybe_start_elsa(args)
     }
@@ -104,8 +104,9 @@ defmodule OffBroadway.Kafka.Producer do
   Handles termination of the Elsa consumer group supervisor process if one exists.
   """
   @spec terminate(term(), map()) :: :ok
-  def terminate(reason, %{name: name, elsa_sup_pid: elsa}) when is_pid(elsa) do
-    Elsa.Group.Supervisor.stop(name)
+  def terminate(reason, %{elsa_sup_pid: elsa}) when is_pid(elsa) do
+    Logger.error("#{__MODULE__}: Terminated elsa")
+    Supervisor.stop(elsa)
     reason
   end
 
@@ -116,9 +117,11 @@ defmodule OffBroadway.Kafka.Producer do
   defp maybe_start_elsa(opts) do
     producer_pid = self()
 
-    if Keyword.has_key?(opts, :brokers) || Keyword.has_key?(opts, :endpoints) do
-      config =
-        opts
+    if Keyword.has_key?(opts, :endpoints) do
+      group_consumer = Keyword.fetch!(opts, :group_consumer)
+
+      new_group_consumer =
+        group_consumer
         |> Keyword.put(:handler, OffBroadway.Kafka.ClassicHandler)
         |> Keyword.put(:handler_init_args, %{producer: self()})
         |> Keyword.put(:assignments_revoked_handler, fn ->
@@ -126,8 +129,10 @@ defmodule OffBroadway.Kafka.Producer do
         end)
         |> Keyword.put(:direct_ack, true)
 
+      config = Keyword.put(opts, :group_consumer, new_group_consumer)
+
       Logger.info("Starting Elsa from Producer - #{inspect(config)}")
-      {:ok, pid} = Elsa.Group.Supervisor.start_link(config)
+      {:ok, pid} = Elsa.Supervisor.start_link(config)
       pid
     end
   end
@@ -159,7 +164,7 @@ defmodule OffBroadway.Kafka.Producer do
           acc
 
         false ->
-          {:ok, pid} = OffBroadway.Kafka.Acknowledger.start_link(name: acc.name)
+          {:ok, pid} = OffBroadway.Kafka.Acknowledger.start_link(connection: acc.connection)
           %{acc | acknowledgers: Map.put(acc.acknowledgers, ack_ref, pid)}
       end
     end)

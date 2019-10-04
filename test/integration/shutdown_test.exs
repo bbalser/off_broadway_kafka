@@ -60,12 +60,14 @@ defmodule ShutdownBroadway do
 
   def start_link(opts) do
     kafka_config = [
-      name: :shutdown_client,
-      brokers: @endpoints,
-      group: @group,
-      topics: [@topic],
-      config: [
-        begin_offset: :earliest
+      connection: :shutdown_client,
+      endpoints: @endpoints,
+      group_consumer: [
+        group: @group,
+        topics: [@topic],
+        config: [
+          begin_offset: :earliest
+        ]
       ]
     ]
 

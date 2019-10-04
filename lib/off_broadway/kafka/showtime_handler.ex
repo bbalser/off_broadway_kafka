@@ -28,7 +28,7 @@ defmodule OffBroadway.Kafka.ShowtimeHandler do
 
     producers = [
       default: [
-        module: {OffBroadway.Kafka.Producer, [name: name()]},
+        module: {OffBroadway.Kafka.Producer, [connection: connection()]},
         stages: 1
       ]
     ]
