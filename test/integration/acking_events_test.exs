@@ -15,7 +15,7 @@ defmodule OffBroadway.Kafka.AckingEventTest do
   @tag timeout: :infinity
   test "should ack events in order" do
     {:ok, message_store} = MessageStore.start_link([])
-    {:ok, broadway} = AckingEventBroadway.start_link(pid: message_store, name: :first_broadway)
+    {:ok, broadway} = AckingEventBroadway.start_link(pid: message_store, connection: :first_broadway)
 
     message_counts = %{
       0 => random(10_000..11_000),
@@ -30,7 +30,7 @@ defmodule OffBroadway.Kafka.AckingEventTest do
 
     Process.sleep(2_000)
 
-    {:ok, broadway} = AckingEventBroadway.start_link(pid: message_store, name: :second_broadway)
+    {:ok, broadway} = AckingEventBroadway.start_link(pid: message_store, connection: :second_broadway)
 
     Process.sleep(30_000)
 
@@ -132,20 +132,22 @@ defmodule AckingEventBroadway do
 
   def start_link(opts) do
     kafka_config = [
-      name: Keyword.fetch!(opts, :name),
-      brokers: @endpoints,
-      group: @group,
-      topics: [@topic],
-      config: [
-        begin_offset: :earliest,
-        prefetch_bytes: 0,
-        prefetch_count: 100,
-        session_timeout_seconds: 120
+      connection: Keyword.fetch!(opts, :connection),
+      endpoints: @endpoints,
+      group_consumer: [
+        group: @group,
+        topics: [@topic],
+        config: [
+          begin_offset: :earliest,
+          prefetch_bytes: 0,
+          prefetch_count: 100,
+          session_timeout_seconds: 120
+        ]
       ]
     ]
 
     Broadway.start_link(__MODULE__,
-      name: :"#{Keyword.fetch!(opts, :name)}_broadway",
+      name: :"#{Keyword.fetch!(opts, :connection)}_broadway",
       producers: [
         default: [
           module: {OffBroadway.Kafka.Producer, kafka_config},

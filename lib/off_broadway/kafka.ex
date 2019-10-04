@@ -33,12 +33,14 @@ defmodule OffBroadway.Kafka do
 
       def start_link(opts) do
         kafka_config = [
-          name: :client1,
-          brokers: [localhost: 9092],
-          group: "classic",
-          topics: ["topic1"],
-          config: [
-            begin_offset: :earliest
+          connection: :client1,
+          endpoints: [localhost: 9092],
+          group_consumer: [
+            group: "classic",
+            topics: ["topic1"],
+            config: [
+              begin_offset: :earliest
+            ]
           ]
         ]
 
@@ -60,7 +62,6 @@ defmodule OffBroadway.Kafka do
       end
 
       def handle_message(processor, message, context) do
-        IO.inspect(message, label: "message")
         send(context.pid, {:message, message})
         message
       end
@@ -77,14 +78,16 @@ defmodule OffBroadway.Kafka do
 
       def kafka_config(_opts) do
         [
-          name: :per_partition,
-          brokers: [localhost: 9092],
-          group: "per_partition",
-          topics: ["topic1"],
-          config: [
-            prefetch_count: 5,
-            prefetch_bytes: 0,
-            begin_offset: :earliest
+          connection: :per_partition,
+          endpoints: [localhost: 9092],
+          group_consumer: [
+            group: "per_partition",
+            topics: ["topic1"],
+            config: [
+              prefetch_count: 5,
+              prefetch_bytes: 0,
+              begin_offset: :earliest
+            ]
           ]
         ]
       end
@@ -104,7 +107,6 @@ defmodule OffBroadway.Kafka do
       end
 
       def handle_message(processor, message, context) do
-        IO.inspect(message, label: "message")
         send(context.pid, {:message, message})
         message
       end
@@ -124,12 +126,16 @@ defmodule OffBroadway.Kafka do
       @behaviour OffBroadway.Kafka
 
       def start_link(opts) do
-        kafka_config =
-          kafka_config(opts)
+        kafka_config = kafka_config(opts)
+
+        new_group_consumer =
+          Keyword.fetch!(kafka_config, :group_consumer)
           |> Keyword.put(:handler, OffBroadway.Kafka.ShowtimeHandler)
           |> Keyword.put(:handler_init_args, broadway_module: __MODULE__, opts: opts)
 
-        Elsa.Group.Supervisor.start_link(kafka_config)
+        config = Keyword.put(kafka_config, :group_consumer, new_group_consumer)
+
+        Elsa.Supervisor.start_link(config)
       end
     end
   end

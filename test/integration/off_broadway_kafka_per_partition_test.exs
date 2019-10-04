@@ -18,14 +18,16 @@ defmodule PerPartition do
 
   def kafka_config(_opts) do
     [
-      name: :per_partition,
-      brokers: [localhost: 9092],
-      group: "per_partition",
-      topics: ["topic1"],
-      config: [
-        prefetch_count: 5,
-        prefetch_bytes: 0,
-        begin_offset: :earliest
+      connection: :per_partition,
+      endpoints: [localhost: 9092],
+      group_consumer: [
+        group: "per_partition",
+        topics: ["topic1"],
+        config: [
+          prefetch_count: 5,
+          prefetch_bytes: 0,
+          begin_offset: :earliest
+        ]
       ]
     ]
   end
