@@ -10,7 +10,7 @@ defmodule OffBroadway.Kafka.AcknowledgerTest do
   @generation_id 7
 
   setup do
-    allow Elsa.Group.Manager.ack(any(), any(), any(), any(), any()), return: :ok
+    allow Elsa.Group.Acknowledger.ack(any(), any(), any(), any(), any()), return: :ok
 
     {:ok, pid} =
       Acknowledger.start_link(
@@ -33,7 +33,7 @@ defmodule OffBroadway.Kafka.AcknowledgerTest do
 
     Patiently.wait_for!(
       fn ->
-        called?(Elsa.Group.Manager.ack(@connection, @topic, @partition, @generation_id, 1))
+        called?(Elsa.Group.Acknowledger.ack(@connection, @topic, @partition, @generation_id, 1))
       end,
       dwell: 200,
       max_tries: 10
@@ -46,7 +46,7 @@ defmodule OffBroadway.Kafka.AcknowledgerTest do
     Acknowledger.ack(ack_ref, [broadway_message(3)], [])
 
     Process.sleep(1_000)
-    refute_called Elsa.Group.Manager.ack(@connection, @topic, @partition, @generation_id, any())
+    refute_called Elsa.Group.Acknowledger.ack(@connection, @topic, @partition, @generation_id, any())
   end
 
   test "should ack all messages up to the latest that have been processed", %{pid: pid, ack_ref: ack_ref} do
@@ -56,8 +56,8 @@ defmodule OffBroadway.Kafka.AcknowledgerTest do
 
     Patiently.wait_for!(
       fn ->
-        called?(Elsa.Group.Manager.ack(@connection, @topic, @partition, @generation_id, any()), once())
-        called?(Elsa.Group.Manager.ack(@connection, @topic, @partition, @generation_id, 3))
+        called?(Elsa.Group.Acknowledger.ack(@connection, @topic, @partition, @generation_id, any()), once())
+        called?(Elsa.Group.Acknowledger.ack(@connection, @topic, @partition, @generation_id, 3))
       end,
       dwell: 200,
       max_tries: 10
@@ -71,8 +71,8 @@ defmodule OffBroadway.Kafka.AcknowledgerTest do
 
     Patiently.wait_for!(
       fn ->
-        called?(Elsa.Group.Manager.ack(@connection, @topic, @partition, @generation_id, any()), once())
-        called?(Elsa.Group.Manager.ack(@connection, @topic, @partition, @generation_id, 41))
+        called?(Elsa.Group.Acknowledger.ack(@connection, @topic, @partition, @generation_id, any()), once())
+        called?(Elsa.Group.Acknowledger.ack(@connection, @topic, @partition, @generation_id, 41))
       end,
       dwell: 200,
       max_tries: 10

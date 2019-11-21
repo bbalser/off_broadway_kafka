@@ -141,11 +141,9 @@ defmodule ClassicPerfBroadway do
 
     Broadway.start_link(__MODULE__,
       name: __MODULE__,
-      producers: [
-        default: [
-          module: {OffBroadway.Kafka.Producer, kafka_config},
-          stages: 1
-        ]
+      producer: [
+        module: {OffBroadway.Kafka.Producer, kafka_config},
+        stages: 1
       ],
       processors: [
         default: [

@@ -26,21 +26,19 @@ defmodule OffBroadway.Kafka.ShowtimeHandler do
     broadway_module = Keyword.fetch!(args, :broadway_module)
     opts = Keyword.get(args, :opts, [])
 
-    producers = [
-      default: [
-        module: {OffBroadway.Kafka.Producer, [connection: connection()]},
-        stages: 1
-      ]
+    producer = [
+      module: {OffBroadway.Kafka.Producer, [connection: connection()]},
+      stages: 1
     ]
 
     broadway_config =
       apply(broadway_module, :broadway_config, [opts, topic(), partition()])
-      |> Keyword.put(:producers, producers)
+      |> Keyword.put(:producer, producer)
 
     {:ok, broadway_pid} = Broadway.start_link(broadway_module, broadway_config)
 
     state = %{
-      producer: Broadway.Server.get_random_producer(broadway_pid)
+      producer: Broadway.Server.producer_names(broadway_pid) |> List.first()
     }
 
     {:ok, state}

@@ -93,7 +93,7 @@ defmodule OffBroadway.Kafka.Acknowledger do
           "Acking(#{inspect(self())}) [topic: #{ack_ref.topic}, partition: #{ack_ref.partition}, offset: #{offset}]"
         )
 
-        Elsa.Group.Manager.ack(state.connection, ack_ref.topic, ack_ref.partition, ack_ref.generation_id, offset)
+        Elsa.Group.Acknowledger.ack(state.connection, ack_ref.topic, ack_ref.partition, ack_ref.generation_id, offset)
     end
 
     {:reply, :ok, state}
