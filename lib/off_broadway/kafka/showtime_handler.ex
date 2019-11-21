@@ -25,7 +25,6 @@ defmodule OffBroadway.Kafka.ShowtimeHandler do
   def init(args) do
     broadway_module = Keyword.fetch!(args, :broadway_module)
     opts = Keyword.get(args, :opts, [])
-    producer_selector = Keyword.get(args, :producer_selector, &default_selector/1)
 
     producer = [
       module: {OffBroadway.Kafka.Producer, [connection: connection()]},
@@ -39,7 +38,7 @@ defmodule OffBroadway.Kafka.ShowtimeHandler do
     {:ok, broadway_pid} = Broadway.start_link(broadway_module, broadway_config)
 
     state = %{
-      producer: producer_selector.(broadway_pid)
+      producer: Broadway.Server.producer_names(broadway_pid) |> List.first()
     }
 
     {:ok, state}
@@ -53,14 +52,5 @@ defmodule OffBroadway.Kafka.ShowtimeHandler do
   def handle_messages(messages, state) do
     OffBroadway.Kafka.Producer.handle_messages(state.producer, messages)
     {:no_ack, state}
-  end
-
-  @doc """
-  Default function for determining a producer process to save to the broadway
-  pipeline state.
-  """
-  @spec default_selector(GenServer.server()) :: atom()
-  def default_selector(server) do
-    Broadway.Server.producer_names(server) |> List.first()
   end
 end
