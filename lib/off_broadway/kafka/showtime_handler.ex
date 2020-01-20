@@ -21,7 +21,7 @@ defmodule OffBroadway.Kafka.ShowtimeHandler do
   built-in `Broadway.Server.get_random_producer/1` function to allow passing
   reference to the producer process to Elsa.
   """
-  @spec init(keyword()) :: :ok
+  @impl true
   def init(args) do
     broadway_module = Keyword.fetch!(args, :broadway_module)
     opts = Keyword.get(args, :opts, [])
@@ -48,7 +48,7 @@ defmodule OffBroadway.Kafka.ShowtimeHandler do
   Delegates messages to the processed to the `Producer` message handler
   function.
   """
-  @spec handle_messages([term()], map()) :: :ok
+  @impl true
   def handle_messages(messages, state) do
     OffBroadway.Kafka.Producer.handle_messages(state.producer, messages)
     {:no_ack, state}

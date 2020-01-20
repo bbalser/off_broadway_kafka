@@ -44,6 +44,7 @@ defmodule OffBroadway.Kafka.Producer do
     to start a consumer group supervisor and store the returned
     pid in the Broadway Producer state for reference.
   """
+  @impl GenStage
   def init(args) do
     connection = Keyword.fetch!(args, :connection)
 
@@ -63,7 +64,7 @@ defmodule OffBroadway.Kafka.Producer do
   demand based on the existing demand in state and sends the
   requested number of message events.
   """
-  @spec handle_demand(non_neg_integer(), map()) :: :ok
+  @impl GenStage
   def handle_demand(demand, state) do
     total_demand = demand + state.demand
     send_events(state, total_demand, state.events)
@@ -74,7 +75,7 @@ defmodule OffBroadway.Kafka.Producer do
   total message events based on existing messages and incoming
   messages and sends the requested events.
   """
-  @spec handle_info({:process_messages, [term()]}, map()) :: :ok
+  @impl GenStage
   def handle_info({:process_messages, messages}, state) do
     total_events = state.events ++ messages
     send_events(state, state.demand, total_events)
@@ -84,7 +85,7 @@ defmodule OffBroadway.Kafka.Producer do
   Handle assignments revoked by kafka broker.  Should wait until
   acknowledgers and reported as empty and clean out any events in queue
   """
-  @spec handle_info({:assignments_revoked, pid()}, map()) :: {:noreply, list(), map()}
+  @impl GenStage
   def handle_info({:assignments_revoked, caller}, state) do
     acknowledgers = Map.values(state.acknowledgers)
 
@@ -103,7 +104,7 @@ defmodule OffBroadway.Kafka.Producer do
   @doc """
   Handles termination of the Elsa consumer group supervisor process if one exists.
   """
-  @spec terminate(term(), map()) :: :ok
+  @impl GenStage
   def terminate(reason, %{elsa_sup_pid: elsa}) when is_pid(elsa) do
     Logger.error("#{__MODULE__}: Terminated elsa")
     Supervisor.stop(elsa)
@@ -118,7 +119,13 @@ defmodule OffBroadway.Kafka.Producer do
     producer_pid = self()
 
     if Keyword.has_key?(opts, :endpoints) do
+      endpoints = Keyword.fetch!(opts, :endpoints)
       group_consumer = Keyword.fetch!(opts, :group_consumer)
+
+      if Keyword.get(opts, :create_topics, false) == true do
+        topics = Keyword.fetch!(group_consumer, :topics)
+        ensure_topic(endpoints, topics)
+      end
 
       new_group_consumer =
         group_consumer
@@ -135,6 +142,14 @@ defmodule OffBroadway.Kafka.Producer do
       {:ok, pid} = Elsa.Supervisor.start_link(config)
       pid
     end
+  end
+
+  defp ensure_topic(endpoints, topics) do
+    Enum.each(topics, fn topic ->
+      unless Elsa.topic?(endpoints, topic) do
+        Elsa.create_topic(endpoints, topic)
+      end
+    end)
   end
 
   defp send_events(state, total_demand, total_events) do
