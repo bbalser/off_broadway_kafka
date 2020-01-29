@@ -1,122 +1,72 @@
 defmodule OffBroadway.Kafka do
   @moduledoc ~S"""
-  Implements a macro for easily including the OffBroadway.Kafka
-  library in your application and declaring the callbacks expected
-  by the framework to configure it's Broadway and Kafka configurations.
-  The OffBroadway.Kafka process creates an Elsa group supervisor as
-  part of its setup to manage consumer group interaction with the cluster.
+  Defines a macro to easily define a Kafka Broadway pipeline in your
+  application, configuring Broadway and Kafka via callbacks.
 
-  ## OffBroadway.Kafka behaviour
+  It starts a Broadway pipeline for each topic and partion for increased
+  concurrency processing events, receiving partition assignments from the group
+  coordinator and starting an Elsa group supervisor for each.
 
-  To define the custom Broadway behaviour for OffBroadway.Kafka:
+  It uses the following callbacks:
 
-    1. Define a `broadway_config/3` function that receives a keyword list
-       of general configuration values as well as a topic and a partition
-       and constructs the necessary keyword list to configure the Broadway
-       processers and any desired batchers and contexts.
-    2. Define a `kafka_config/1` function that constructs the necessary
-       configuration to pass to Elsa for defining which Kafka brokers to
-       connect to, which topic and partition Broadway should consume from,
-       a name and consumer group name, as well as consumer configs:
-         * prefetch_count
-         * prefetch_bytes
-         * begin_offset
+    1. `c:kafka_config/1` receives `start_link` options and
+       returns the Kafka consumer configuration which is passed to
+       `Elsa.Supervisor.start_link/1`.
 
-  ## Examples
-  ### ClassicHandler
-  This implementation uses Broadway directly and defines the handler to use
-  the OffBroad.Kafka.Producer handler which communicates with the cluster via
-  Elsa:
+    2. `c:broadway_config/3` receives a keyword list of configuration
+       options, a topic and a partition. It returns the keyword
+       list to configure the Broadway processors, batchers and contexts.
+       Called by `OffBroadway.Kafka.ShowtimeHandler`.
 
-    defmodule ClassicBroadway do
-      use Broadway
+  For example:
 
-      def start_link(opts) do
-        kafka_config = [
-          connection: :client1,
-          endpoints: [localhost: 9092],
-          group_consumer: [
-            group: "classic",
-            topics: ["topic1"],
-            config: [
-              begin_offset: :earliest
-            ]
+  ```elixir
+  defmodule ShowtimeBroadway do
+    use OffBroadway.Kafka
+
+    def kafka_config(_opts) do
+      [
+        connection: :per_partition,
+        endpoints: [localhost: 9092],
+        group_consumer: [
+          group: "per_partition",
+          topics: ["topic1"],
+          config: [
+            prefetch_count: 5,
+            prefetch_bytes: 0,
+            begin_offset: :earliest
           ]
         ]
-
-        Broadway.start_link(__MODULE__,
-          name: __MODULE__,
-          producer: [
-            module: {OffBroadway.Kafka.Producer, kafka_config},
-            stages: 1
-          ],
-          processors: [
-            default: [
-              stages: 1
-            ]
-          ],
-          context: %{pid: Keyword.get(opts, :pid)}
-        )
-      end
-
-      def handle_message(processor, message, context) do
-        send(context.pid, {:message, message})
-        message
-      end
+      ]
     end
 
-  ### ShowtimeHandler
-  This implementation uses the OffBroadway.Kafka behaviour and starts
-  an Elsa group supervisor directly to have the handler create a per-topic,
-  per-partition basis Broadway pipeline on receiving partition assignments
-  from the group coordinator for nested concurrency of processing events:
-
-    defmodule ShowtimeBroadway do
-      use OffBroadway.Kafka
-
-      def kafka_config(_opts) do
-        [
-          connection: :per_partition,
-          endpoints: [localhost: 9092],
-          group_consumer: [
-            group: "per_partition",
-            topics: ["topic1"],
-            config: [
-              prefetch_count: 5,
-              prefetch_bytes: 0,
-              begin_offset: :earliest
-            ]
+    def broadway_config(opts, topic, partition) do
+      [
+        name: :"broadway_per_partition_#{topic}_#{partition}",
+        processors: [
+          default: [
+            stages: 5
           ]
-        ]
-      end
-
-      def broadway_config(opts, topic, partition) do
-        [
-          name: :"broadway_per_partition_#{topic}_#{partition}",
-          processors: [
-            default: [
-              stages: 5
-            ]
-          ],
-          context: %{
-            pid: Keyword.get(opts, :pid)
-          }
-        ]
-      end
-
-      def handle_message(processor, message, context) do
-        send(context.pid, {:message, message})
-        message
-      end
+        ],
+        context: %{
+          pid: Keyword.get(opts, :pid)
+        }
+      ]
     end
+
+    def handle_message(processor, message, context) do
+      send(context.pid, {:message, message})
+      message
+    end
+  end
+  ```
   """
 
   @callback broadway_config(keyword(), String.t(), non_neg_integer()) :: keyword()
   @callback kafka_config(term()) :: keyword()
 
   @doc """
-  Macro to include the setup functionality for OffBroadway.Kafka and start
-  an Elsa consumer group manager for each Broadway pipeline instantiated.
+  Macro which starts pipeline for each Elsa consumer group manager instantiated.
   """
   defmacro __using__(_opts) do
     quote do

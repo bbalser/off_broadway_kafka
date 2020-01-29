@@ -1,29 +1,30 @@
 defmodule OffBroadway.Kafka.ClassicHandler do
   @moduledoc """
-  Supplies a message handler for integrating with
-  Broadway in a more traditional manner of including
-  Broadway directly in the implementing application
-  only supplying a handler module customized to the
-  producing system. The "Classic" handler supplies a
-  simple pass-through init function and delegates message
-  handling to the OffBroadway.Kafka.Producer module.
+  Defines an `Elsa.Consumer.MessageHandler` for integrating with Broadway in the
+  tradtional way, using Broadway directly.
+
+  It supplies a simple pass-through init function and delegates message
+  handling to the `OffBroadway.Kafka.Producer` module.
+
+  Set up by `OffBroadway.Kafka.Producer`.
   """
   use Elsa.Consumer.MessageHandler
 
   @doc """
-  Supplies a basic init function, delegating the majority
-  of setup to the included Elsa consumer handler using macro.
+  Supplies a basic init function, delegating the rest to the
+  default `Elsa.Consumer.MessageHandler` behavior.
   """
-  @spec init(keyword()) :: {:ok, keyword()}
+  @impl Elsa.Consumer.MessageHandler
   def init(args) do
     {:ok, args}
   end
 
   @doc """
-  Delegates message processing to the `Producer` message handler
-  function.
+  Handles Kafka messages.
+
+  Delegates message processing to `OffBroadway.Kafka.Producer.handle_messages/2`.
   """
-  @spec handle_messages([term()], map()) :: :ok
+  @impl Elsa.Consumer.MessageHandler
   def handle_messages(messages, state) do
     OffBroadway.Kafka.Producer.handle_messages(state.producer, messages)
     {:no_ack, state}
