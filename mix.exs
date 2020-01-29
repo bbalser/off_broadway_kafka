@@ -16,7 +16,7 @@ defmodule OffBroadwayKafka.MixProject do
       homepage_url: @github,
       docs: docs(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      test_paths: test_paths(Mix.env()),
+      test_paths: test_paths(Mix.env())
     ]
   end
 
@@ -40,7 +40,7 @@ defmodule OffBroadwayKafka.MixProject do
       {:patiently, "~> 0.2.0", only: [:test, :integration], override: true},
       {:ex_doc, "~> 0.21.2", only: [:dev], runtime: false},
       {:benchee, "~> 1.0", only: [:integration]},
-      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -57,7 +57,7 @@ defmodule OffBroadwayKafka.MixProject do
       source_url: @github,
       extras: ["README.md"],
       # api_reference: false,
-      source_url_pattern: "#{@github}/blob/master/%{path}#L%{line}",
+      source_url_pattern: "#{@github}/blob/master/%{path}#L%{line}"
     ]
   end
 
