@@ -1,6 +1,8 @@
 defmodule OffBroadwayKafka.MixProject do
   use Mix.Project
 
+  @github "https://github.com/bbalser/off_broadway_kafka"
+
   def project do
     [
       app: :off_broadway_kafka,
@@ -8,8 +10,11 @@ defmodule OffBroadwayKafka.MixProject do
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      package: package(),
       description: description(),
+      package: package(),
+      source_url: @github,
+      homepage_url: @github,
+      docs: docs(),
       elixirc_paths: elixirc_paths(Mix.env()),
       test_paths: test_paths(Mix.env())
     ]
@@ -34,7 +39,8 @@ defmodule OffBroadwayKafka.MixProject do
       {:divo_kafka, "~> 0.1.6", only: [:dev, :integration]},
       {:patiently, "~> 0.2.0", only: [:test, :integration], override: true},
       {:ex_doc, "~> 0.21.2", only: [:dev], runtime: false},
-      {:benchee, "~> 1.0", only: [:integration]}
+      {:benchee, "~> 1.0", only: [:integration]},
+      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -42,7 +48,16 @@ defmodule OffBroadwayKafka.MixProject do
     [
       maintainers: ["Brian Balser", "Jeff Grunewald"],
       licenses: ["Apache 2.0"],
-      links: %{"GitHub" => "https://github.com/bbalser/off_broadway_kafka"}
+      links: %{"GitHub" => @github}
+    ]
+  end
+
+  defp docs do
+    [
+      source_url: @github,
+      extras: ["README.md"],
+      # api_reference: false,
+      source_url_pattern: "#{@github}/blob/master/%{path}#L%{line}"
     ]
   end
 

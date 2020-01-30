@@ -1,23 +1,30 @@
 defmodule OffBroadway.Kafka.Producer do
   @moduledoc """
-  Implements the logic to handle incoming messages through
-  the broadway pipeline. Sends messages to the `handle_info/2`
-  and `handle_demand/2` functions based on requests and tracks
-  acknowledgements in state.
+  Defines a Broadway Producer module which receives messages from Kafka
+  to initiate the Broadway pipeline.
+
+  Sends messages to the `handle_info/2` and `handle_demand/2` functions based
+  on requests and tracks acknowledgements in state.
   """
   use GenStage
   use Retry
   require Logger
 
   @doc """
-  Convenience function for sending messages to be
-  produced via the `handle_info/2` function.
+  Passes Kafka messages to the `handle_info/2` function.
+
+  Called by Elsa message handler.
   """
   @spec handle_messages(pid(), term()) :: :ok
   def handle_messages(pid, messages) do
     send(pid, {:process_messages, messages})
   end
 
+  @doc """
+  Passes Kafka partition assignment changes to the `handle_info/2` function.
+
+  Called by Elsa `assignments_revoked_handler`.
+  """
   @spec assignments_revoked(pid()) :: :ok
   def assignments_revoked(pid) do
     send(pid, {:assignments_revoked, self()})
@@ -28,7 +35,7 @@ defmodule OffBroadway.Kafka.Producer do
   end
 
   @doc """
-  Starts an OffBroadway.Kafka producer process linked to the current
+  Starts an `OffBroadway.Kafka` producer process linked to the current
   process.
   """
   def start_link(opts) do
@@ -36,13 +43,11 @@ defmodule OffBroadway.Kafka.Producer do
   end
 
   @doc """
-  Names the producer process and initializes state
-  for the producer GenServer.
+  Names the producer process and initializes state for the producer GenServer.
 
-    * if args contain a value for :brokers or :endpoints,
-    creates a handler config and passes it to the Elsa library
-    to start a consumer group supervisor and store the returned
-    pid in the Broadway Producer state for reference.
+  If `args` contains a value for `:endpoints`, creates a handler config and
+  passes it to the Elsa library to start a consumer group supervisor and stores
+  the returned `pid` in the Broadway Producer state for reference.
   """
   @impl GenStage
   def init(args) do
@@ -60,8 +65,9 @@ defmodule OffBroadway.Kafka.Producer do
   end
 
   @doc """
-  Handle message events based on demand. Updates the
-  demand based on the existing demand in state and sends the
+  Handles message events based on demand.
+
+  Updates the demand based on the existing demand in state and sends the
   requested number of message events.
   """
   @impl GenStage
@@ -71,8 +77,9 @@ defmodule OffBroadway.Kafka.Producer do
   end
 
   @doc """
-  Handle message events based on incoming messages. Updates the
-  total message events based on existing messages and incoming
+  Handles incoming Kafka message events.
+
+  Updates the total message events based on existing messages and incoming
   messages and sends the requested events.
   """
   @impl GenStage
@@ -82,8 +89,9 @@ defmodule OffBroadway.Kafka.Producer do
   end
 
   @doc """
-  Handle assignments revoked by kafka broker.  Should wait until
-  acknowledgers and reported as empty and clean out any events in queue
+  Handles assignments revoked by the Kafka broker.
+
+  Waits until acknowledgers report as empty and cleans out any events in queue.
   """
   @impl GenStage
   def handle_info({:assignments_revoked, caller}, state) do

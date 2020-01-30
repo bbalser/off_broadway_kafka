@@ -1,27 +1,26 @@
 defmodule OffBroadway.Kafka.ShowtimeHandler do
   @moduledoc """
-  Implements message handling using an opinionated
-  interpretation of Broadway for interaction with Kafka.
-  Intended for use in conjunction with the `__using__` macro
-  provided by `OffBroadway.Kafka`.
-  Assumes a single producer stage, preconfigured to use
-  the `OffBroadway.Kafka.Producer` module and takes configuration
-  for additional Broadway elements via the Elsa configurations
-  passed through via the `kafka_config/1` function and those passed
-  to Broadway via the `broadway_config/1` functions defined in
-  the top-level module's behaviour callbacks.
+  Defines an `Elsa.Consumer.MessageHandler` for integrating with Broadway
+  which supports creating a pipeline per topic partition for increased
+  concurrency.
+
+  Configuration for Kafka and Broadway are handled by the
+  `c:OffBroadway.Kafka.kafka_config/1` and
+  `c:OffBroadway.Kafka.broadway_config/3` callbacks.
+
+  Set up by the `OffBroadway.Kafka` macro.
   """
   use Elsa.Consumer.MessageHandler
 
   @doc """
-  Assumes a single producer stage using the `OffBroadway.Kafka.Producer`
-  module and collects other Broadway configuration passed in from the
-  calling application's implementation of the `broadway_config/1` behaviour.
-  Retains a reference to the producer process in the state via Broadway's
-  built-in `Broadway.Server.get_random_producer/1` function to allow passing
-  reference to the producer process to Elsa.
+  Initializes Broadway pipeline for `Elsa.Consumer.MessageHandler`.
+
+  Assumes a single producer stage using the `OffBroadway.Kafka.Producer` module.
+  Other Broadway configuration comes from the `c:OffBroadway.Kafka.broadway_config/3`callback.
+
+  Retains a reference to the producer process in the state.
   """
-  @impl true
+  @impl Elsa.Consumer.MessageHandler
   def init(args) do
     broadway_module = Keyword.fetch!(args, :broadway_module)
     opts = Keyword.get(args, :opts, [])
@@ -45,8 +44,9 @@ defmodule OffBroadway.Kafka.ShowtimeHandler do
   end
 
   @doc """
-  Delegates messages to the processed to the `Producer` message handler
-  function.
+  Handles Kafka messages.
+
+  Delegates message processing to `OffBroadway.Kafka.Producer.handle_messages/2`.
   """
   @impl true
   def handle_messages(messages, state) do
