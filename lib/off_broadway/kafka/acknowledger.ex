@@ -3,7 +3,7 @@ defmodule OffBroadway.Kafka.Acknowledger do
   Implements the Broadway acknowledger behaviour, acking
   messages back to Kafka once they have been successfully processed.
 
-  It stores message ack references in ETS as an ordered set, acknowleging
+  It stores message ack references in ETS as an ordered set, acknowledging
   them in the order received rather than the order processed. This ensures that a
   failure of the Broadway pipeline does not allow messages received later but
   processed faster to erroneously mark lost messages as acknowledged when they
@@ -16,7 +16,7 @@ defmodule OffBroadway.Kafka.Acknowledger do
   @type ack_ref() :: %{topic: String.t(), partition: non_neg_integer(), generation_id: non_neg_integer() | nil}
 
   @doc """
-  Constructs an ack_ref record for storing the status of message acknowledgement
+  Constructs an `ack_ref` record for storing the status of message acknowledgement
   in ETS.
   """
   @spec ack_ref(Elsa.Message.elsa_message()) :: ack_ref()

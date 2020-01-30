@@ -3,7 +3,7 @@ defmodule OffBroadway.Kafka do
   Defines a macro to easily define a Kafka Broadway pipeline in your
   application, configuring Broadway and Kafka via callbacks.
 
-  It starts a Broadway pipeline for each topic and partion for increased
+  It starts a Broadway pipeline for each topic and partition for increased
   concurrency processing events, receiving partition assignments from the group
   coordinator and starting an Elsa group supervisor for each.
 

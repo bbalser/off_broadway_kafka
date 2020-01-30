@@ -1,7 +1,7 @@
 defmodule OffBroadway.Kafka.ClassicHandler do
   @moduledoc """
   Defines an `Elsa.Consumer.MessageHandler` for integrating with Broadway in the
-  tradtional way, using Broadway directly.
+  traditional way, using Broadway directly.
 
   It supplies a simple pass-through init function and delegates message
   handling to the `OffBroadway.Kafka.Producer` module.

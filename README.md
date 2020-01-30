@@ -79,7 +79,7 @@ end
 
 This example uses the `OffBroadway.Kafka` macro.
 
-It starts a Broadway pipeline for each topic and partion for increased
+It starts a Broadway pipeline for each topic and partition for increased
 concurrency processing events.
 
 ```elixir
