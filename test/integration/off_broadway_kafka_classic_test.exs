@@ -39,11 +39,11 @@ defmodule ClassicBroadway do
       name: __MODULE__,
       producer: [
         module: {OffBroadway.Kafka.Producer, kafka_config},
-        stages: 1
+        concurrency: 1
       ],
       processors: [
         default: [
-          stages: 1
+          concurrency: 1
         ]
       ],
       context: %{pid: Keyword.get(opts, :pid)}

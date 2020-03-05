@@ -45,7 +45,7 @@ defmodule OffBroadway.Kafka do
         name: :"broadway_per_partition_#{topic}_#{partition}",
         processors: [
           default: [
-            stages: 5
+            concurrency: 5
           ]
         ],
         context: %{

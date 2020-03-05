@@ -27,7 +27,7 @@ defmodule OffBroadway.Kafka.ShowtimeHandler do
 
     producer = [
       module: {OffBroadway.Kafka.Producer, [connection: connection()]},
-      stages: 1
+      concurrency: 1
     ]
 
     broadway_config =

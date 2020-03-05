@@ -150,14 +150,14 @@ defmodule AckingEventBroadway do
       name: :"#{Keyword.fetch!(opts, :connection)}_broadway",
       producer: [
         module: {OffBroadway.Kafka.Producer, kafka_config},
-        stages: 1
+        concurrency: 1
       ],
       processors: [
-        default: [stages: 8]
+        default: [concurrency: 8]
       ],
       batchers: [
         default: [
-          stages: 1,
+          concurrency: 1,
           batch_size: 1_000,
           batch_timeout: 2_000
         ]
