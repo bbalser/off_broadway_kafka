@@ -16,7 +16,8 @@ defmodule OffBroadwayKafka.MixProject do
       homepage_url: @github,
       docs: docs(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      test_paths: test_paths(Mix.env())
+      test_paths: test_paths(Mix.env()),
+      dialyzer: [plt_file: {:no_warn, ".plt/dialyzer.plt"}]
     ]
   end
 
@@ -38,7 +39,7 @@ defmodule OffBroadwayKafka.MixProject do
       {:patiently, "~> 0.2", only: [:test, :integration], override: true},
       {:ex_doc, "~> 0.21", only: [:dev], runtime: false},
       {:benchee, "~> 1.0", only: [:integration]},
-      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.0.0-rc.7", only: [:dev], runtime: false}
     ]
   end
 
