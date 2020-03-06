@@ -35,13 +35,13 @@ defmodule OffBroadway.Kafka.PerformanceTest do
   test "performance test" do
     Benchee.run(
       %{
-        "classic" => fn %{stages: stages} -> classic_broadway(stages) end,
-        "per_partition" => fn %{stages: stages} -> per_partition_broadway(stages) end
+        "classic" => fn %{concurrency: concurrency} -> classic_broadway(concurrency) end,
+        "per_partition" => fn %{concurrency: concurrency} -> per_partition_broadway(concurrency) end
       },
       inputs: %{
-        "1 stage" => %{stages: 1},
-        "10 stages" => %{stages: 10},
-        "100 stages" => %{stages: 100}
+        "1 concurrency" => %{concurrency: 1},
+        "10 concurrency" => %{concurrency: 10},
+        "100 concurrency" => %{concurrency: 100}
       },
       time: 10,
       memory_time: 2,
@@ -49,13 +49,17 @@ defmodule OffBroadway.Kafka.PerformanceTest do
     )
   end
 
-  defp per_partition_broadway(stages) do
+  defp per_partition_broadway(concurrency) do
     write_messages_to_input()
 
     starting_offset = latest_offset()
 
     {:ok, pid} =
-      PerPartitionBroadway.start_link(processor_stages: stages, topics: [@input_topic], output_topic: @output_topic)
+      PerPartitionBroadway.start_link(
+        processor_concurrency: concurrency,
+        topics: [@input_topic],
+        output_topic: @output_topic
+      )
 
     Patiently.wait_for!(
       fn ->
@@ -70,12 +74,16 @@ defmodule OffBroadway.Kafka.PerformanceTest do
     ensure_exit(pid)
   end
 
-  defp classic_broadway(stages) do
+  defp classic_broadway(concurrency) do
     write_messages_to_input()
     starting_offset = latest_offset()
 
     {:ok, pid} =
-      ClassicPerfBroadway.start_link(processor_stages: stages, topics: [@input_topic], output_topic: @output_topic)
+      ClassicPerfBroadway.start_link(
+        processor_concurrency: concurrency,
+        topics: [@input_topic],
+        output_topic: @output_topic
+      )
 
     Patiently.wait_for!(
       fn ->
@@ -143,11 +151,11 @@ defmodule ClassicPerfBroadway do
       name: __MODULE__,
       producer: [
         module: {OffBroadway.Kafka.Producer, kafka_config},
-        stages: 1
+        concurrency: 1
       ],
       processors: [
         default: [
-          stages: Keyword.get(opts, :processor_stages, 1)
+          concurrency: Keyword.get(opts, :processor_concurrency, 1)
         ]
       ],
       context: %{
@@ -184,7 +192,7 @@ defmodule PerPartitionBroadway do
       name: :"broadway_per_partition_#{topic}_#{partition}",
       processors: [
         default: [
-          stages: Keyword.get(opts, :processor_stages, 1)
+          concurrency: Keyword.get(opts, :processor_concurrency, 1)
         ]
       ],
       context: %{

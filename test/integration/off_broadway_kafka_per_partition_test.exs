@@ -36,7 +36,7 @@ defmodule PerPartition do
     [
       name: :"broadway_per_partition_#{topic}_#{partition}",
       processors: [
-        default: [stages: 5]
+        default: [concurrency: 5]
       ],
       context: %{
         pid: Keyword.get(opts, :pid)

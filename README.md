@@ -7,8 +7,8 @@ It communicates with Kafka using the [Elsa](https://hex.pm/packages/elsa)
 Elixir library, which itself uses the [Brod](https://hex.pm/packages/brod)
 Erlang library.
 
-It can dynamically create Broadway stages on a per-topic or per-partition basis
-for a given Kafka topic.
+It can dynamically create Broadway concurrency stages on a per-topic or per-partition
+basis for a given Kafka topic.
 
 ## Installation
 
@@ -57,11 +57,11 @@ defmodule ClassicBroadway do
       name: __MODULE__,
       producer: [
         module: {OffBroadway.Kafka.Producer, kafka_config},
-        stages: 1
+        concurrency: 1
       ],
       processors: [
         default: [
-          stages: 1
+          concurrency: 1
         ]
       ],
       context: %{pid: Keyword.get(opts, :pid)}
@@ -107,7 +107,7 @@ defmodule ShowtimeBroadway do
       name: :"broadway_per_partition_#{topic}_#{partition}",
       processors: [
         default: [
-          stages: 5
+          concurrency: 5
         ]
       ],
       context: %{

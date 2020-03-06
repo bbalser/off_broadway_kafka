@@ -75,16 +75,16 @@ defmodule ShutdownBroadway do
       name: __MODULE__,
       producer: [
         module: {OffBroadway.Kafka.Producer, kafka_config},
-        stages: 1
+        concurrency: 1
       ],
       processors: [
         default: [
-          stages: 1
+          concurrency: 1
         ]
       ],
       batchers: [
         default: [
-          stages: 1,
+          concurrency: 1,
           batch_size: 1_000,
           batch_timeout: 2_000
         ]

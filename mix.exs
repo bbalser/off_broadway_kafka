@@ -6,7 +6,7 @@ defmodule OffBroadwayKafka.MixProject do
   def project do
     [
       app: :off_broadway_kafka,
-      version: "1.0.0",
+      version: "1.0.1",
       elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -16,31 +16,30 @@ defmodule OffBroadwayKafka.MixProject do
       homepage_url: @github,
       docs: docs(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      test_paths: test_paths(Mix.env())
+      test_paths: test_paths(Mix.env()),
+      dialyzer: [plt_file: {:no_warn, ".plt/dialyzer.plt"}]
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:elsa, "~> 0.11.1"},
-      {:broadway, "~> 0.5.0"},
-      {:retry, "~> 0.13.0"},
+      {:elsa, "~> 0.12"},
+      {:broadway, "~> 0.6"},
+      {:retry, "~> 0.13"},
       {:placebo, "~> 1.2", only: [:dev, :test, :integration]},
-      {:checkov, "~> 0.5.0", only: [:dev, :test, :integration]},
+      {:checkov, "~> 0.5", only: [:dev, :test, :integration]},
       {:divo, "~> 1.1", only: [:dev, :integration]},
       {:divo_kafka, "~> 0.1.6", only: [:dev, :integration]},
-      {:patiently, "~> 0.2.0", only: [:test, :integration], override: true},
-      {:ex_doc, "~> 0.21.2", only: [:dev], runtime: false},
+      {:patiently, "~> 0.2", only: [:test, :integration], override: true},
+      {:ex_doc, "~> 0.21", only: [:dev], runtime: false},
       {:benchee, "~> 1.0", only: [:integration]},
-      {:dialyxir, "~> 0.5", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.0.0-rc.7", only: [:dev], runtime: false}
     ]
   end
 

@@ -23,3 +23,5 @@ erl_crash.dump
 off_broadway_kafka-*.tar
 
 .elixir_ls/
+
+/.plt/
